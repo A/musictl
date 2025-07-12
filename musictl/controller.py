@@ -45,7 +45,7 @@ class Controller:
     def _play_directory(self, directory: Path):
         """Handle playing music from directory."""
         track_options = [str(option) for option in Config.get_track_count_options()]
-        track_count_str = self.ui.select_item(track_options, "Number of tracks:")
+        track_count_str = self.ui.select_item(track_options, "Number of tracks")
         if not track_count_str:
             return
 
@@ -174,7 +174,7 @@ class Controller:
             return
 
         selected_subdir = self.ui.select_item(
-            subdirs, f"Select subdirectory in {target_dir_name}:"
+            subdirs, f"Select subdirectory in {target_dir_name}"
         )
         if not selected_subdir:
             print("No subdirectory selected")
@@ -194,7 +194,7 @@ class Controller:
         print(f"Current track: {current_track.name}")
 
         confirm_options = ["Yes", "No"]
-        confirm = self.ui.select_item(confirm_options, f"Delete {current_track.name}?")
+        confirm = self.ui.select_item(confirm_options, f"Delete {current_track.name}")
 
         if confirm == "Yes":
             try:
@@ -204,3 +204,56 @@ class Controller:
                 print(f"Error deleting file: {e}")
         else:
             print("Deletion cancelled")
+
+    def search(self):
+        """Search and play a music file."""
+        base_path = Config.get_base_path()
+        root_dirs = Config.get_music_directories()
+
+        all_files = []
+
+        for root_dir in root_dirs:
+            dir_path = base_path / root_dir
+            if dir_path.exists():
+                scan_result = FileScanner.scan(
+                    dir_path,
+                    file_patterns=Config.get_music_extensions(),
+                    ignored_dirs=Config.get_ignored_dirs(),
+                )
+                all_files.extend(scan_result["files"])
+
+        if not all_files:
+            print("No music files found")
+            return
+
+        # Create searchable strings with relative paths from base directory
+        file_options = []
+        for f in all_files:
+            try:
+                relative_path = f.relative_to(base_path)
+                file_options.append(str(relative_path))
+            except ValueError:
+                # If file is not under base_path, use full path
+                file_options.append(str(f))
+
+        selected_path = self.ui.select_item(file_options, "Search and select track")
+
+        if not selected_path:
+            print("No file selected")
+            return
+
+        # Find the corresponding file
+        if selected_path.startswith("/"):
+            selected_file = Path(selected_path)
+        else:
+            selected_file = base_path / selected_path
+
+        if not selected_file.exists():
+            print("File not found")
+            return
+
+        playlist_path, _ = PlaylistManager.create_playlist(
+            [selected_file], "1", "search"
+        )
+        Player.play_playlist(playlist_path, Config.get_player_command())
+        print(f"Playing: {selected_file.name}")

@@ -9,6 +9,7 @@ def main():
         print("Usage: musictl <command>")
         print("Commands:")
         print("  select        - Browse and play music")
+        print("  search        - Search and play a specific track")
         print("  pick <dir>    - Move current track to directory")
         print("  delete        - Delete current track")
         return
@@ -18,6 +19,8 @@ def main():
 
     if command == "select":
         controller.start()
+    elif command == "search":
+        controller.search()
     elif command == "pick":
         if len(sys.argv) < 3:
             print("Usage: musictl pick <directory>")

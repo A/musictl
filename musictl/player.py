@@ -10,7 +10,6 @@ class Player:
     def play_playlist(playlist_path: Path, player_command: str = "deadbeef"):
         """Play playlist file."""
         try:
-            # Запускаем плеер синхронно, но с detach от родительского процесса
             subprocess.Popen(
                 [player_command, str(playlist_path)],
                 stdout=subprocess.DEVNULL,

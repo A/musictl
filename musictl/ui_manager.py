@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import html
 from typing import List, Optional, Callable, Dict
 
 from pyrofi import run_menu, WOFI_CMD
@@ -7,14 +8,26 @@ from pyrofi import run_menu, WOFI_CMD
 class UIManager:
     """Generic UI manager for rofi interactions."""
 
+    def _escape_markup(self, text: str) -> str:
+        """Escape XML markup characters."""
+        return html.escape(text)
+
     def show_menu(
         self, items: List[str], callbacks: Dict[str, Callable], prompt: str
     ) -> None:
         """Show menu using rofi."""
-        menu = {item: callbacks.get(item, lambda _: None) for item in items}
+        escaped_menu = {}
+        for item in items:
+            escaped_item = self._escape_markup(item.lower())
+            callback = callbacks.get(item, lambda _: None)
+            escaped_menu[escaped_item] = callback
 
         try:
-            run_menu(menu, prompt=prompt, menu_cmd=WOFI_CMD)
+            run_menu(
+                escaped_menu,
+                prefix=prompt,
+                menu_cmd=WOFI_CMD,
+            )
         except Exception:
             pass
 
@@ -22,14 +35,26 @@ class UIManager:
         """Select single item from list and return it."""
         selected = None
 
-        def make_selector(item):
+        def make_selector(original_item):
             def selector(_):
                 nonlocal selected
-                selected = item
+                selected = original_item  # Return original unescaped item
                 return False
 
             return selector
 
-        callbacks = {item: make_selector(item) for item in items}
-        self.show_menu(items, callbacks, prompt)
+        escaped_menu = {}
+        for item in items:
+            escaped_item = self._escape_markup(item.lower())
+            escaped_menu[escaped_item] = make_selector(item)
+
+        try:
+            run_menu(
+                escaped_menu,
+                prefix=prompt,
+                menu_cmd=WOFI_CMD,
+            )
+        except Exception:
+            pass
+
         return selected
