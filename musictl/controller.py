@@ -259,6 +259,22 @@ class Controller:
 
         return artist_name, album_name, track_num, track_title
 
+    def _log_import(self, source_file: Path, target_file: Path):
+        """Log imported file to import log."""
+        try:
+            log_file = Config.get_import_log_file()
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_entry = (
+                f"{timestamp} | {source_file.absolute()} -> {target_file.absolute()}\n"
+            )
+
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(log_entry)
+        except Exception as e:
+            print(f"Warning: Could not write to import log: {e}")
+
     def import_tracks(self, target_dir_name: str, source_dir: str):
         """Import tracks from source directory to target directory."""
         source_path = Path(source_dir).resolve()
@@ -299,7 +315,8 @@ class Controller:
             print(f"No music files found in {source_path}")
             return
 
-        copied_count = 0
+        processed_count = 0
+        processed_files = []  # Track source files for deletion
 
         for file_path in scan_result["files"]:
             try:
@@ -319,14 +336,40 @@ class Controller:
                     continue
 
                 shutil.copy2(file_path, target_file)
-                copied_count += 1
+
+                # Log the import
+                self._log_import(file_path, target_file)
+
+                processed_count += 1
+                processed_files.append(file_path)
                 print(f"Copied: {new_filename}")
 
             except Exception as e:
                 print(f"Error processing {file_path}: {e}")
                 continue
 
-        print(f"Successfully imported {copied_count} tracks to {target_path}")
+        print(f"Successfully imported {processed_count} tracks to {target_path}")
+
+        # Ask user if they want to delete source files
+        if processed_files:
+            print(f"\nImported {len(processed_files)} files.")
+            response = (
+                input("Do you want to delete the source files? (y/N): ").strip().lower()
+            )
+
+            if response in ["y", "yes"]:
+                deleted_count = 0
+                for source_file in processed_files:
+                    try:
+                        source_file.unlink()
+                        deleted_count += 1
+                        print(f"Deleted: {source_file.name}")
+                    except Exception as e:
+                        print(f"Error deleting {source_file}: {e}")
+
+                print(f"Deleted {deleted_count} source files.")
+            else:
+                print("Source files kept.")
 
     def delete(self):
         """Delete current track."""

@@ -33,6 +33,7 @@ class Config:
             "player_command": "deadbeef",
             "ignored_dirs": ["downloads", ".git", "__pycache__"],
             "music_extensions": [".mp3", ".flac", ".wav", ".ogg", ".m4a"],
+            "import_log_file": "~/.config/musictl/import.log",
         }
 
     @classmethod
@@ -71,3 +72,8 @@ class Config:
     def get_music_extensions(cls) -> List[str]:
         cls._load_config()
         return cls._config["music_extensions"]
+
+    @classmethod
+    def get_import_log_file(cls) -> Path:
+        cls._load_config()
+        return Path(cls._config["import_log_file"]).expanduser()
