@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import shutil
+import mutagen
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -127,7 +128,7 @@ class Controller:
                 subdir = directory / subdir_name
                 callbacks[item] = lambda _, sd=subdir: self.browse_directory(sd)
 
-        self.ui.show_menu(items, callbacks, f"{directory.name}:")
+        self.ui.show_menu(items, callbacks, f"{directory.name}")
 
     def start(self):
         """Start the application."""
@@ -145,7 +146,7 @@ class Controller:
             selected_dir = base_path / root_name
             callbacks[item] = lambda _, sd=selected_dir: self.browse_directory(sd)
 
-        self.ui.show_menu(items, callbacks, "Select music directory:")
+        self.ui.show_menu(items, callbacks, "Select music directory")
 
     def pick(self, target_dir_name: str):
         """Pick current track and move it to target directory."""
@@ -183,6 +184,149 @@ class Controller:
         success = self._move_file(current_track, target_dir, selected_subdir)
         if success:
             print(f"Successfully moved to {target_dir_name}/{selected_subdir}")
+
+    def _extract_metadata(self, file_path: Path) -> tuple[str, str, str, str]:
+        """Extract artist, album, track number, and title from file tags."""
+        if not mutagen:
+            print("Warning: mutagen not installed, using filename fallback")
+            return self._extract_from_filename(file_path)
+
+        try:
+            audio_file = mutagen.File(file_path)
+            if not audio_file:
+                return self._extract_from_filename(file_path)
+
+            # Get tags - mutagen returns lists for most formats
+            artist = (
+                audio_file.get("TPE1") or audio_file.get("ARTIST") or ["Unknown Artist"]
+            )
+            album = (
+                audio_file.get("TALB") or audio_file.get("ALBUM") or ["Unknown Album"]
+            )
+            track_num = (
+                audio_file.get("TRCK") or audio_file.get("TRACKNUMBER") or ["00"]
+            )
+            title = (
+                audio_file.get("TIT2") or audio_file.get("TITLE") or [file_path.stem]
+            )
+
+            # Extract first value from lists
+            artist = artist[0] if isinstance(artist, list) else str(artist)
+            album = album[0] if isinstance(album, list) else str(album)
+            track_num = track_num[0] if isinstance(track_num, list) else str(track_num)
+            title = title[0] if isinstance(title, list) else str(title)
+
+            # Clean track number (remove "/total" if present)
+            if "/" in str(track_num):
+                track_num = str(track_num).split("/")[0]
+
+            # Format track number as 2 digits
+            try:
+                track_num = f"{int(track_num):02d}"
+            except (ValueError, TypeError):
+                track_num = "00"
+
+            return str(artist), str(album), track_num, str(title)
+
+        except Exception as e:
+            print(f"Error reading tags from {file_path}: {e}")
+            return self._extract_from_filename(file_path)
+
+    def _extract_from_filename(self, file_path: Path) -> tuple[str, str, str, str]:
+        """Fallback: extract metadata from filename and directory structure."""
+        # Extract artist from grandparent directory name
+        artist_name = file_path.parent.parent.name
+
+        # Extract album from parent directory
+        album_dir = file_path.parent.name
+        if " - " in album_dir:
+            year_part, album_name = album_dir.split(" - ", 1)
+        else:
+            album_name = album_dir
+
+        # Extract track number and title from filename
+        filename = file_path.stem
+
+        if filename.startswith(("01", "02", "03", "04", "05", "06", "07", "08", "09")):
+            if " - " in filename:
+                track_num, track_title = filename.split(" - ", 1)
+            else:
+                track_num = filename[:2]
+                track_title = filename[2:].strip(" -")
+        else:
+            track_num = "00"
+            track_title = filename
+
+        return artist_name, album_name, track_num, track_title
+
+    def import_tracks(self, target_dir_name: str, source_dir: str):
+        """Import tracks from source directory to target directory."""
+        source_path = Path(source_dir).resolve()
+        if not source_path.exists():
+            print(f"Source directory does not exist: {source_path}")
+            return
+
+        # Parse target directory (e.g., "collection/indie_inbox")
+        target_parts = target_dir_name.split("/")
+        if len(target_parts) != 2:
+            print(
+                "Target format should be: root_dir/subdir (e.g., collection/indie_inbox)"
+            )
+            return
+
+        root_dir, subdir = target_parts
+
+        # Validate root directory
+        music_dirs = Config.get_music_directories()
+        if root_dir not in music_dirs:
+            print(f"Invalid root directory. Available: {', '.join(music_dirs)}")
+            return
+
+        # Create target directory path
+        base_path = Config.get_base_path()
+        year_month = datetime.now().strftime("%Y-%m")
+        target_path = base_path / root_dir / subdir / year_month
+        target_path.mkdir(parents=True, exist_ok=True)
+
+        # Find all music files in source directory
+        scan_result = FileScanner.scan(
+            source_path,
+            file_patterns=Config.get_music_extensions(),
+            ignored_dirs=Config.get_ignored_dirs(),
+        )
+
+        if not scan_result["files"]:
+            print(f"No music files found in {source_path}")
+            return
+
+        copied_count = 0
+
+        for file_path in scan_result["files"]:
+            try:
+                # Extract metadata from tags
+                artist, album, track_num, title = self._extract_metadata(file_path)
+
+                # Create new filename: Artist - Album - Track - Title.ext
+                new_filename = (
+                    f"{artist} - {album} - {track_num} - {title}{file_path.suffix}"
+                )
+
+                # Copy file to target directory
+                target_file = target_path / new_filename
+
+                if target_file.exists():
+                    print(f"Skipping existing file: {new_filename}")
+                    continue
+
+                shutil.copy2(file_path, target_file)
+                copied_count += 1
+                print(f"Copied: {new_filename}")
+
+            except Exception as e:
+                print(f"Error processing {file_path}: {e}")
+                continue
+
+        print(f"Successfully imported {copied_count} tracks to {target_path}")
 
     def delete(self):
         """Delete current track."""
