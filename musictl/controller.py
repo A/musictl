@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import shutil
 import mutagen
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -11,6 +12,7 @@ from .playlist_manager import PlaylistManager
 from .player import Player
 from .ui_manager import UIManager
 from .mpris import Mpris
+from .cue_splitter import CueSplitter
 
 
 class Controller:
@@ -19,6 +21,7 @@ class Controller:
     def __init__(self):
         self.ui = UIManager()
         self.mpris = Mpris()
+        self.cue_splitter = CueSplitter()
 
     def _get_root_items(self) -> List[str]:
         """Get menu items for root directories."""
@@ -259,18 +262,139 @@ class Controller:
 
         return artist_name, album_name, track_num, track_title
 
+    def _find_cue_files(self, directory: Path) -> list[tuple[Path, Path]]:
+        """Find FLAC/WAV files with corresponding CUE files."""
+        cue_pairs = []
+        
+        for audio_file in directory.glob("*.flac"):
+            cue_file = audio_file.with_suffix('.cue')
+            if cue_file.exists():
+                cue_pairs.append((audio_file, cue_file))
+        
+        for audio_file in directory.glob("*.wav"):
+            cue_file = audio_file.with_suffix('.cue')
+            if cue_file.exists():
+                cue_pairs.append((audio_file, cue_file))
+        
+        return cue_pairs
+    
+    def _parse_cue_file(self, cue_file: Path) -> list[dict]:
+        """Parse CUE file and extract track information."""
+        tracks = []
+        current_track = {}
+        
+        try:
+            with open(cue_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # Try with different encodings
+            try:
+                with open(cue_file, 'r', encoding='cp1251') as f:
+                    content = f.read()
+            except:
+                print(f"Could not read CUE file: {cue_file}")
+                return []
+        
+        lines = content.split('\n')
+        album_title = ""
+        album_artist = ""
+        
+        for line in lines:
+            line = line.strip()
+            
+            if line.startswith('TITLE '):
+                title = line[6:].strip('"')
+                if not album_title:
+                    album_title = title
+                else:
+                    current_track['title'] = title
+            
+            elif line.startswith('PERFORMER '):
+                performer = line[10:].strip('"')
+                if not album_artist:
+                    album_artist = performer
+                else:
+                    current_track['artist'] = performer
+            
+            elif line.startswith('TRACK '):
+                if current_track:
+                    tracks.append(current_track)
+                track_parts = line.split()
+                track_num = track_parts[1]
+                current_track = {
+                    'track_num': f"{int(track_num):02d}",
+                    'album': album_title,
+                    'album_artist': album_artist
+                }
+            
+            elif line.startswith('INDEX 01 '):
+                current_track['index'] = line[9:].strip()
+        
+        if current_track:
+            tracks.append(current_track)
+        
+        # Fill missing artist fields with album artist
+        for track in tracks:
+            if 'artist' not in track:
+                track['artist'] = album_artist
+        
+        return tracks
+    
+    def _split_audio_file(self, audio_file: Path, cue_file: Path, output_dir: Path) -> list[Path]:
+        """Split audio file using CUE file with ffmpeg."""
+        tracks = self._parse_cue_file(cue_file)
+        if not tracks:
+            return []
+        
+        output_files = []
+        
+        for i, track in enumerate(tracks):
+            # Create output filename
+            artist = track.get('artist', 'Unknown Artist')
+            album = track.get('album', 'Unknown Album')
+            track_num = track.get('track_num', '00')
+            title = track.get('title', f'Track {track_num}')
+            
+            output_filename = f"{artist} - {album} - {track_num} - {title}.flac"
+            output_path = output_dir / output_filename
+            
+            # Build ffmpeg command
+            cmd = ['ffmpeg', '-i', str(audio_file), '-c', 'copy']
+            
+            # Set start time
+            if 'index' in track:
+                cmd.extend(['-ss', track['index']])
+            
+            # Set end time (start of next track)
+            if i + 1 < len(tracks) and 'index' in tracks[i + 1]:
+                cmd.extend(['-to', tracks[i + 1]['index']])
+            
+            cmd.append(str(output_path))
+            
+            try:
+                import subprocess
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    output_files.append(output_path)
+                    print(f"Extracted: {output_filename}")
+                else:
+                    print(f"Error extracting track {track_num}: {result.stderr}")
+            except Exception as e:
+                print(f"Error running ffmpeg: {e}")
+                continue
+        
+        return output_files
+    
     def _log_import(self, source_file: Path, target_file: Path):
         """Log imported file to import log."""
         try:
             log_file = Config.get_import_log_file()
             log_file.parent.mkdir(parents=True, exist_ok=True)
-
+            
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            log_entry = (
-                f"{timestamp} | {source_file.absolute()} -> {target_file.absolute()}\n"
-            )
-
-            with open(log_file, "a", encoding="utf-8") as f:
+            log_entry = f"{timestamp} | {source_file.absolute()} -> {target_file.absolute()}\n"
+            
+            with open(log_file, 'a', encoding='utf-8') as f:
                 f.write(log_entry)
         except Exception as e:
             print(f"Warning: Could not write to import log: {e}")
@@ -304,72 +428,179 @@ class Controller:
         target_path = base_path / root_dir / subdir / year_month
         target_path.mkdir(parents=True, exist_ok=True)
 
-        # Find all music files in source directory
-        scan_result = FileScanner.scan(
-            source_path,
-            file_patterns=Config.get_music_extensions(),
-            ignored_dirs=Config.get_ignored_dirs(),
-        )
+        # Check for CUE files in subdirectories
+        cue_pairs = []
+        for item in source_path.rglob("*"):
+            if item.is_dir():
+                pairs = self.cue_splitter.find_cue_files(item)
+                cue_pairs.extend(pairs)
+        
+        # Also check root directory
+        root_pairs = self.cue_splitter.find_cue_files(source_path)
+        cue_pairs.extend(root_pairs)
+        
+        # Debug: show what we found
+        print(f"Debug: Found {len(cue_pairs)} CUE pairs")
+        for cue_file, audio_file in cue_pairs:
+            print(f"  CUE: {cue_file.name} -> Audio: {audio_file.name}")
+        
+        # Process CUE files if found
+        temp_extracted_files = []
+        temp_dir = None
+        
+        try:
+            if cue_pairs:
+                print(f"Found {len(cue_pairs)} CUE files with audio:")
+                for cue_file, audio_file in cue_pairs:
+                    try:
+                        artist, album, tracks = self.cue_splitter.parse_cue(cue_file)
+                        print(f"\n{audio_file.name} ({artist} - {album}) -> {len(tracks)} tracks:")
+                        # Show all tracks, not just first 3
+                        for track in tracks:
+                            print(f"  {track}")
+                    except Exception as e:
+                        print(f"Error parsing {cue_file}: {e}")
+                        continue
+                
+                response = input("\nDo you want to split these files using CUE data? (y/N): ").strip().lower()
+                
+                if response in ['y', 'yes']:
+                    # Create temporary directory for extracted files
+                    temp_dir = Path(tempfile.mkdtemp())
+                    
+                    for cue_file, audio_file in cue_pairs:
+                        try:
+                            print(f"Splitting {audio_file.name}...")
+                            artist, album, tracks = self.cue_splitter.parse_cue(cue_file)
+                            extracted = self.cue_splitter.split_audio(audio_file, tracks, temp_dir)
+                            
+                            # Rename extracted files to final format
+                            for i, extracted_file in enumerate(extracted):
+                                if i < len(tracks):
+                                    track = tracks[i]
+                                    final_name = f"{track.performer} - {album} - {track.number:02d} - {track.title}{extracted_file.suffix}"
+                                    final_path = temp_dir / final_name
+                                    extracted_file.rename(final_path)
+                                    temp_extracted_files.append(final_path)
+                            
+                        except KeyboardInterrupt:
+                            print("\nOperation cancelled by user.")
+                            raise
+                        except Exception as e:
+                            print(f"Error splitting {audio_file}: {e}")
+                            continue
+                    
+                    print(f"Extracted {len(temp_extracted_files)} tracks to temporary directory.")
 
-        if not scan_result["files"]:
-            print(f"No music files found in {source_path}")
-            return
+            # Find regular music files (excluding CUE audio files)
+            regular_files = []
+            cue_audio_files = {audio_file for _, audio_file in cue_pairs}
+            
+            scan_result = FileScanner.scan(
+                source_path,
+                file_patterns=Config.get_music_extensions(),
+                ignored_dirs=Config.get_ignored_dirs(),
+            )
+            
+            for file_path in scan_result["files"]:
+                if file_path not in cue_audio_files:
+                    regular_files.append(file_path)
+            
+            # Combine regular files with extracted files
+            all_files = regular_files + temp_extracted_files
 
-        processed_count = 0
-        processed_files = []  # Track source files for deletion
+            if not all_files:
+                if cue_pairs:
+                    print(f"No individual music files found, but found {len(cue_pairs)} CUE pairs.")
+                    print("Run again and choose 'y' to split the CUE files.")
+                else:
+                    print(f"No music files found in {source_path}")
+                return
 
-        for file_path in scan_result["files"]:
-            try:
-                # Extract metadata from tags
-                artist, album, track_num, title = self._extract_metadata(file_path)
+            processed_count = 0
+            processed_files = []  # Track source files for deletion
 
-                # Create new filename: Artist - Album - Track - Title.ext
-                new_filename = (
-                    f"{artist} - {album} - {track_num} - {title}{file_path.suffix}"
-                )
+            for file_path in all_files:
+                try:
+                    # For extracted files, filename already contains metadata
+                    if file_path in temp_extracted_files:
+                        new_filename = file_path.name
+                    else:
+                        # Extract metadata from tags for regular files
+                        artist, album, track_num, title = self._extract_metadata(file_path)
+                        new_filename = f"{artist} - {album} - {track_num} - {title}{file_path.suffix}"
 
-                # Copy file to target directory
-                target_file = target_path / new_filename
+                    # Copy file to target directory
+                    target_file = target_path / new_filename
 
-                if target_file.exists():
-                    print(f"Skipping existing file: {new_filename}")
+                    if target_file.exists():
+                        print(f"Skipping existing file: {new_filename}")
+                        continue
+
+                    shutil.copy2(file_path, target_file)
+                    
+                    # Log the import
+                    self._log_import(file_path, target_file)
+                    
+                    processed_count += 1
+                    if file_path not in temp_extracted_files:
+                        processed_files.append(file_path)
+                    print(f"Copied: {new_filename}")
+
+                except KeyboardInterrupt:
+                    print("\nOperation cancelled by user.")
+                    raise
+                except Exception as e:
+                    print(f"Error processing {file_path}: {e}")
                     continue
 
-                shutil.copy2(file_path, target_file)
-
-                # Log the import
-                self._log_import(file_path, target_file)
-
-                processed_count += 1
-                processed_files.append(file_path)
-                print(f"Copied: {new_filename}")
-
-            except Exception as e:
-                print(f"Error processing {file_path}: {e}")
-                continue
-
-        print(f"Successfully imported {processed_count} tracks to {target_path}")
-
-        # Ask user if they want to delete source files
-        if processed_files:
-            print(f"\nImported {len(processed_files)} files.")
-            response = (
-                input("Do you want to delete the source files? (y/N): ").strip().lower()
-            )
-
-            if response in ["y", "yes"]:
-                deleted_count = 0
-                for source_file in processed_files:
+            print(f"Successfully imported {processed_count} tracks to {target_path}")
+            
+            # Ask user if they want to delete source files (including CUE files)
+            if processed_files or cue_pairs:
+                source_count = len(processed_files) + len(cue_pairs)
+                print(f"\nImported from {source_count} source files.")
+                response = input("Do you want to delete the source files? (y/N): ").strip().lower()
+                
+                if response in ['y', 'yes']:
+                    deleted_count = 0
+                    
+                    # Delete regular files
+                    for source_file in processed_files:
+                        try:
+                            source_file.unlink()
+                            deleted_count += 1
+                            print(f"Deleted: {source_file.name}")
+                        except Exception as e:
+                            print(f"Error deleting {source_file}: {e}")
+                    
+                    # Delete CUE files and their audio files
+                    for cue_file, audio_file in cue_pairs:
+                        try:
+                            cue_file.unlink()
+                            audio_file.unlink()
+                            deleted_count += 2
+                            print(f"Deleted: {cue_file.name} and {audio_file.name}")
+                        except Exception as e:
+                            print(f"Error deleting CUE pair: {e}")
+                    
+                    print(f"Deleted {deleted_count} source files.")
+                else:
+                    print("Source files kept.")
+        
+        finally:
+            # Clean up temporary files
+            if temp_extracted_files:
+                for temp_file in temp_extracted_files:
                     try:
-                        source_file.unlink()
-                        deleted_count += 1
-                        print(f"Deleted: {source_file.name}")
-                    except Exception as e:
-                        print(f"Error deleting {source_file}: {e}")
-
-                print(f"Deleted {deleted_count} source files.")
-            else:
-                print("Source files kept.")
+                        temp_file.unlink()
+                    except:
+                        pass
+            if temp_dir:
+                try:
+                    temp_dir.rmdir()
+                except:
+                    pass
 
     def delete(self):
         """Delete current track."""
