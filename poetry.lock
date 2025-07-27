@@ -28,18 +28,6 @@ files = [
 ]
 
 [[package]]
-name = "pyrofi"
-version = "0.3.0"
-description = "Rofi Menu wrapper for hierarchical menu creation."
-optional = false
-python-versions = ">=3.6,<4.0"
-groups = ["main"]
-files = [
-    {file = "pyrofi-0.3.0-py3-none-any.whl", hash = "sha256:09a99b1ad86bb56321582358d25777b666391aa7110759a3f63ee28d61a5df99"},
-    {file = "pyrofi-0.3.0.tar.gz", hash = "sha256:e7041f57fb833845d82b365f726b20673b3c3b89a09dc11e0cd2470beadf75e0"},
-]
-
-[[package]]
 name = "pyyaml"
 version = "6.0.2"
 description = "YAML parser and emitter for Python"
@@ -105,4 +93,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "71ca2b807405136a5238bc077e8ebdac4925e6a03135f0ba2f20316c0e7be59f"
+content-hash = "ca36e0861556414418b39db684297f1868d398228eef43acc866c3f77a53644e"

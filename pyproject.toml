@@ -1,6 +1,6 @@
 [project]
 name = "musictl"
-version = "0.1.1"
+version = "0.1.2"
 description = "Music control utility with wofi integration"
 authors = [
     {name = "Sanek", email = "anton@shuvalov.info"}
@@ -8,7 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = [
-    "pyrofi>=0.3.0,<0.4.0",
     "pyyaml>=6.0.2,<7.0.0",
     "dbus-python>=1.4.0,<2.0.0",
     "mutagen (>=1.47.0,<2.0.0)"
