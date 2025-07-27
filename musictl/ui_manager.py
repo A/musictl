@@ -18,7 +18,7 @@ class UIManager:
         """Show menu using rofi."""
         escaped_menu = {}
         for item in items:
-            escaped_item = self._escape_markup(item.lower())
+            escaped_item = self._escape_markup(item)  # Removed .lower()
             callback = callbacks.get(item, lambda _: None)
             escaped_menu[escaped_item] = callback
 
@@ -45,7 +45,7 @@ class UIManager:
 
         escaped_menu = {}
         for item in items:
-            escaped_item = self._escape_markup(item.lower())
+            escaped_item = self._escape_markup(item)  # Removed .lower()
             escaped_menu[escaped_item] = make_selector(item)
 
         try:
