@@ -262,129 +262,6 @@ class Controller:
 
         return artist_name, album_name, track_num, track_title
 
-    def _find_cue_files(self, directory: Path) -> list[tuple[Path, Path]]:
-        """Find FLAC/WAV files with corresponding CUE files."""
-        cue_pairs = []
-        
-        for audio_file in directory.glob("*.flac"):
-            cue_file = audio_file.with_suffix('.cue')
-            if cue_file.exists():
-                cue_pairs.append((audio_file, cue_file))
-        
-        for audio_file in directory.glob("*.wav"):
-            cue_file = audio_file.with_suffix('.cue')
-            if cue_file.exists():
-                cue_pairs.append((audio_file, cue_file))
-        
-        return cue_pairs
-    
-    def _parse_cue_file(self, cue_file: Path) -> list[dict]:
-        """Parse CUE file and extract track information."""
-        tracks = []
-        current_track = {}
-        
-        try:
-            with open(cue_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except UnicodeDecodeError:
-            # Try with different encodings
-            try:
-                with open(cue_file, 'r', encoding='cp1251') as f:
-                    content = f.read()
-            except:
-                print(f"Could not read CUE file: {cue_file}")
-                return []
-        
-        lines = content.split('\n')
-        album_title = ""
-        album_artist = ""
-        
-        for line in lines:
-            line = line.strip()
-            
-            if line.startswith('TITLE '):
-                title = line[6:].strip('"')
-                if not album_title:
-                    album_title = title
-                else:
-                    current_track['title'] = title
-            
-            elif line.startswith('PERFORMER '):
-                performer = line[10:].strip('"')
-                if not album_artist:
-                    album_artist = performer
-                else:
-                    current_track['artist'] = performer
-            
-            elif line.startswith('TRACK '):
-                if current_track:
-                    tracks.append(current_track)
-                track_parts = line.split()
-                track_num = track_parts[1]
-                current_track = {
-                    'track_num': f"{int(track_num):02d}",
-                    'album': album_title,
-                    'album_artist': album_artist
-                }
-            
-            elif line.startswith('INDEX 01 '):
-                current_track['index'] = line[9:].strip()
-        
-        if current_track:
-            tracks.append(current_track)
-        
-        # Fill missing artist fields with album artist
-        for track in tracks:
-            if 'artist' not in track:
-                track['artist'] = album_artist
-        
-        return tracks
-    
-    def _split_audio_file(self, audio_file: Path, cue_file: Path, output_dir: Path) -> list[Path]:
-        """Split audio file using CUE file with ffmpeg."""
-        tracks = self._parse_cue_file(cue_file)
-        if not tracks:
-            return []
-        
-        output_files = []
-        
-        for i, track in enumerate(tracks):
-            # Create output filename
-            artist = track.get('artist', 'Unknown Artist')
-            album = track.get('album', 'Unknown Album')
-            track_num = track.get('track_num', '00')
-            title = track.get('title', f'Track {track_num}')
-            
-            output_filename = f"{artist} - {album} - {track_num} - {title}.flac"
-            output_path = output_dir / output_filename
-            
-            # Build ffmpeg command
-            cmd = ['ffmpeg', '-i', str(audio_file), '-c', 'copy']
-            
-            # Set start time
-            if 'index' in track:
-                cmd.extend(['-ss', track['index']])
-            
-            # Set end time (start of next track)
-            if i + 1 < len(tracks) and 'index' in tracks[i + 1]:
-                cmd.extend(['-to', tracks[i + 1]['index']])
-            
-            cmd.append(str(output_path))
-            
-            try:
-                import subprocess
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0:
-                    output_files.append(output_path)
-                    print(f"Extracted: {output_filename}")
-                else:
-                    print(f"Error extracting track {track_num}: {result.stderr}")
-            except Exception as e:
-                print(f"Error running ffmpeg: {e}")
-                continue
-        
-        return output_files
-    
     def _log_import(self, source_file: Path, target_file: Path):
         """Log imported file to import log."""
         try:
@@ -501,7 +378,7 @@ class Controller:
                 file_patterns=Config.get_music_extensions(),
                 ignored_dirs=Config.get_ignored_dirs(),
             )
-            
+
             for file_path in scan_result["files"]:
                 if file_path not in cue_audio_files:
                     regular_files.append(file_path)
