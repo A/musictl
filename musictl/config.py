@@ -34,6 +34,12 @@ class Config:
             "ignored_dirs": ["downloads", ".git", "__pycache__"],
             "music_extensions": [".mp3", ".flac", ".wav", ".ogg", ".m4a"],
             "import_log_file": "~/.config/musictl/import.log",
+            "analyze": {
+                "genres": [],
+                "dirs": ["collection", "inbox"],
+                "batch_size": 10,
+                "separator": ";"
+            }
         }
 
     @classmethod
@@ -77,3 +83,23 @@ class Config:
     def get_import_log_file(cls) -> Path:
         cls._load_config()
         return Path(cls._config["import_log_file"]).expanduser()
+
+    @classmethod
+    def get_analyze_genres(cls) -> List[str]:
+        cls._load_config()
+        return cls._config.get("analyze", {}).get("genres", [])
+
+    @classmethod
+    def get_analyze_dirs(cls) -> List[str]:
+        cls._load_config()
+        return cls._config.get("analyze", {}).get("dirs", ["collection", "inbox"])
+
+    @classmethod
+    def get_analyze_batch_size(cls) -> int:
+        cls._load_config()
+        return cls._config.get("analyze", {}).get("batch_size", 10)
+
+    @classmethod
+    def get_analyze_separator(cls) -> str:
+        cls._load_config()
+        return cls._config.get("analyze", {}).get("separator", ";")

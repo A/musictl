@@ -23,6 +23,8 @@ def main():
         print("  pick <dir>      - Move current track to directory")
         print("  delete          - Delete current track")
         print("  import <dir> <source> - Import tracks from source to target directory")
+        print("  ai-analyze      - AI-powered genre analysis for music tracks")
+        print("                    Options: --dry-run (preview), --force (re-analyze all)")
         return
     
     command = sys.argv[1]
@@ -51,6 +53,10 @@ def main():
             target_dir = sys.argv[2]
             source_dir = sys.argv[3]
             controller.import_tracks(target_dir, source_dir)
+        elif command == "ai-analyze":
+            dry_run = "--dry-run" in sys.argv
+            force = "--force" in sys.argv
+            controller.ai_analyze(dry_run, force)
         else:
             print(f"Unknown command: {command}")
     

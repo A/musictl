@@ -14,6 +14,7 @@ from .player import Player
 from .ui_manager import UIManager
 from .mpris import Mpris
 from .cue_splitter import CueSplitter
+from .ai_analyzer import AIAnalyzer
 
 
 class Controller:
@@ -23,6 +24,7 @@ class Controller:
         self.ui = UIManager()
         self.mpris = Mpris()
         self.cue_splitter = CueSplitter()
+        self.ai_analyzer = None
 
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filename to be safe for all filesystems and foldersync."""
@@ -586,3 +588,64 @@ class Controller:
         )
         Player.play_playlist(playlist_path, Config.get_player_command())
         print(f"Playing: {selected_file.name}")
+
+    def ai_analyze(self, dry_run: bool = False, force: bool = False):
+        """AI-powered genre analysis for music tracks."""
+        try:
+            # Check if genres are configured
+            genres = Config.get_analyze_genres()
+            if not genres:
+                print("Error: No genres configured for AI analysis.")
+                print("Please add genres to your configuration file:")
+                print(f"  {Config._config_path}")
+                print("Add a 'genres' list under the 'analyze' section.")
+                print("Example:")
+                print("  analyze:")
+                print("    genres: [rock, pop, electronic, jazz, classical, hip-hop, country, blues]")
+                return
+
+            # Initialize AI analyzer
+            if self.ai_analyzer is None:
+                print("Initializing AI analyzer...")
+                self.ai_analyzer = AIAnalyzer()
+
+            print(f"Starting AI analysis with genres: {', '.join(genres)}")
+            if dry_run:
+                print("DRY RUN MODE - No files will be modified")
+            if force:
+                print("FORCE MODE - Re-analyzing all tracks including previously analyzed ones")
+            
+            # Run analysis
+            results = self.ai_analyzer.analyze_all_configured_dirs(dry_run, force)
+            
+            if "error" in results:
+                print(f"Error: {results['error']}")
+                return
+
+            # Print summary
+            print(f"\n=== AI Analysis Complete ===")
+            print(f"Processed: {results['processed']} tracks")
+            print(f"Updated: {results['updated']} tracks")
+            print(f"Errors: {results['errors']} tracks")
+            
+            # Print detailed results for each directory
+            for dir_name, dir_results in results['directories'].items():
+                print(f"\n--- {dir_name} ---")
+                print(f"  Processed: {dir_results['processed']} tracks")
+                print(f"  Updated: {dir_results['updated']} tracks")
+                print(f"  Errors: {dir_results['errors']} tracks")
+                
+                # Show genre suggestions for each track
+                for track in dir_results['tracks']:
+                    if track['suggested_genre']:
+                        status = "✓" if track['updated'] else "→"
+                        print(f"  {status} {track['name']}: {track['suggested_genre']}")
+                    else:
+                        print(f"  - {track['name']}: (no suitable genre found)")
+
+        except KeyboardInterrupt:
+            print("\n\nAnalysis cancelled by user.")
+        except Exception as e:
+            print(f"Error during AI analysis: {e}")
+            import traceback
+            traceback.print_exc()
