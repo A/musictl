@@ -37,7 +37,7 @@ class AIAnalyzer:
                 instructions=self._get_instructions(),
                 exponential_backoff=True,
                 delay_between_retries=2,
-                debug_mode=False
+                debug_mode=True
             )
             self.logger.info("AI Agent initialized successfully")
         except Exception as e:
@@ -46,33 +46,43 @@ class AIAnalyzer:
 
     def _get_system_message(self) -> str:
         """Get the system message for the AI agent."""
-        return """You are a music genre analysis expert. Your task is to analyze music tracks and determine their most appropriate genres from a given list of available genres.
+        return """You are an experienced musical journalist. You need to analyze given track, and provide a comprehensive and accurate list of musical genres it matches with. Use only available genres. If nothing from available genres matches the track, return an empty string. If multiple genres matches the track (soundtrack, orchestral, dark orchestral, etc) or if a genre with its subgenre matches the track (punk rock, pop punk, etc), add all of them.
+
+Use basic knowledge about genres, for example, don't mix house and chillhop.
+
+ALWAYS use web search to get information about a track and be more precise.
+ALWAYS search also for music reviews for albums not only on wikipedia.
 
 CRITICAL: You must respond with ONLY the genre name(s) or empty string. No explanations, no analysis, no additional text.
 
-Rules:
-1. Analyze the track's metadata (title, artist, album, existing genre if any)
-2. Use web search to gather information about the track if needed
-3. Determine the most appropriate genres from the provided list
-4. Return multiple genres separated by semicolon (;) if several genres fit well
-5. Return only the genre name(s), or empty string if no suitable genre is found
-6. Be conservative - if you're not confident, return empty string rather than guessing
+CRITICAL: Ambient genre can't be mixed with other genres, except it's subgenres. In such cases ambient should be omitted.0
+    WRONG: ChillHop;Ambient
+    CORRECT: ChillHop
+    CORRECT: Ambient;Dark Ambient
 
-Examples of correct responses:
-- rock
-- electronic;ambient
-- jazz;blues
-- (empty string if no suitable genre)
+CRITICAL: Never make up genres. It's better to skip unclear genre then add wrong one. You'll be charged for mistakes.
 
-WRONG responses (do not do this):
-- "Based on analysis, this track is indie"
-- "The genre for this track is: rock"
-- "indie; folk (alternative pop style)"
+CRITICAL: Never mix russian rap with other genres, except Rap.
 
-CORRECT response format:
-- indie;folk
-- rock
-- (empty string)"""
+Always double check if a track is a soundtrack. Shoundtracks can be only for movies or video games.
+If a track is used in a movie or a game, but not specifically written for it, it shouldn't be labeled as soundtrack.
+
+Example:
+- Witcher -> Correct
+- Galaxy Guardians playlist tracks -> Not correct
+
+Dark orchestral music can't be mixed with other genres except orchestral. It shoud stay for dark orchestral music and soundtracks.
+
+CORRECT: Elden Ring Soundtrack
+
+## Weird Genre Mixes
+
+- Indie, Russian Rap
+
+## Response format:
+- Single genre: rock
+- Multiple genres: indie;folk
+- No match: (empty string)"""
 
     def _get_instructions(self) -> str:
         """Get instructions for the AI agent based on available genres."""
@@ -80,14 +90,33 @@ CORRECT response format:
         if not genres:
             return "No genres configured. Please add genres to the configuration first."
         
-        genres_list = ", ".join(genres)
-        return f"""Available genres: {genres_list}
+        # Handle both old format (list of strings) and new format (list of dicts)
+        if isinstance(genres[0], str):
+            genres_list = ", ".join(genres)
+            return f"""Available genres: {genres_list}
 
 For each track, analyze its metadata and determine which genre from the list best fits the track. 
 If the track doesn't clearly fit any of the available genres, return an empty string.
-Focus on the musical style, not just the artist's typical genre."""
+Focus on the musical style, not just the artist's typical genre.
+"""
+        else:
+            # New format - show titles with descriptions
+            genres_text = ""
+            for genre in genres:
+                title = genre.get("title", "")
+                description = genre.get("description", "")
+                if title:
+                    if description:
+                        genres_text += f"- {title}: {description}\n"
+                    else:
+                        genres_text += f"- {title}\n"
+            
+            return f"""Available genres with descriptions:
+{genres_text}
+For each track, analyze its metadata and determine which genre from the list best fits the track.
+Use the descriptions above to understand the specific characteristics of each genre."""
 
-    def _get_prompt(self, track_path: Path, genres: List[str]) -> str:
+    def _get_prompt(self, track_path: Path, genres: List[dict]) -> str:
         """Generate analysis prompt for a specific track."""
         try:
             audio_file = MutagenFile(str(track_path))
@@ -104,27 +133,44 @@ Focus on the musical style, not just the artist's typical genre."""
             album = (
                 audio_file.get("TALB") or audio_file.get("ALBUM") or ["Unknown Album"]
             )
-            existing_genre = (
-                audio_file.get("TCON") or audio_file.get("GENRE") or [""]
-            )
-            
             # Extract first value from lists
             title = title[0] if isinstance(title, list) else str(title)
             artist = artist[0] if isinstance(artist, list) else str(artist)
             album = album[0] if isinstance(album, list) else str(album)
-            existing_genre = existing_genre[0] if isinstance(existing_genre, list) else str(existing_genre)
             
-            prompt = f"""Analyze this music track and determine its genre:
+            # Format genres for prompt
+            if isinstance(genres[0], str):
+                # Old format
+                genres_list = ', '.join(genres)
+                genres_section = f"Available genres: {genres_list}"
+            else:
+                # New format - show titles with descriptions
+                genres_text = ""
+                for genre in genres:
+                    genre_title = genre.get("title", "")
+                    description = genre.get("description", "")
+                    if genre_title:
+                        if description:
+                            genres_text += f"- {genre_title}: {description}\n"
+                        else:
+                            genres_text += f"- {genre_title}\n"
+                genres_section = f"Available genres:\n{genres_text}"
+            
+            prompt = f"""You are experienced musical journalist. You need to analyze given track, and provide a comprehensive and accurate
+list of musical genres it matches with. Use only available genres. If nothing from available genres matches the track,
+return an empty string. If multiple genres matches the track (soundtrack, orchestral, dark orchestral, etc) or
+if a genre with its subgenre matches the track (punk rock, pop punk, etc), add all of them.
+
+Use basic knowledge about genres, for example, don't mix house and chillhop.
+
+ALWAYS use web search to get information about a track and be more precise
 
 Track: {title}
 Artist: {artist}
 Album: {album}
-Current genre: {existing_genre or 'None'}
 File: {track_path.name}
 
-Available genres: {', '.join(genres)}
-
-Determine the most appropriate genre from the list above. If none fit well, return empty string."""
+{genres_section}"""
             
             return prompt
         except Exception as e:
@@ -163,9 +209,14 @@ Determine the most appropriate genre from the list above. If none fit well, retu
         """Analyze a single track and return the suggested genre."""
         try:
             # Check if track was already analyzed (unless force is True)
+            if 'Pilar - Demo - 07.Kruzo.mp3' not in str(track_path):
+                return 'SKIPPED'
+
             if not force:
                 if self._is_track_analyzed(track_path):
                     return "SKIPPED"
+
+            breakpoint()
             
             genres = self.config.get_analyze_genres()
             if not genres:
@@ -209,7 +260,16 @@ Determine the most appropriate genre from the list above. If none fit well, retu
             valid_genres = []
             
             # Create case-insensitive mapping
-            genres_lower = {g.lower(): g for g in genres}
+            if isinstance(genres[0], str):
+                # Old format
+                genres_lower = {g.lower(): g for g in genres}
+            else:
+                # New format - map titles
+                genres_lower = {}
+                for genre in genres:
+                    title = genre.get("title", "")
+                    if title:
+                        genres_lower[title.lower()] = title
             
             for genre in suggested_genres:
                 genre_lower = genre.lower()

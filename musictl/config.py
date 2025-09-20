@@ -85,9 +85,23 @@ class Config:
         return Path(cls._config["import_log_file"]).expanduser()
 
     @classmethod
-    def get_analyze_genres(cls) -> List[str]:
+    def get_analyze_genres(cls) -> List[dict]:
+        """Get genres with their descriptions."""
         cls._load_config()
         return cls._config.get("analyze", {}).get("genres", [])
+    
+    @classmethod
+    def get_analyze_genre_titles(cls) -> List[str]:
+        """Get only genre titles for backward compatibility."""
+        genres = cls.get_analyze_genres()
+        if not genres:
+            return []
+        
+        # Handle both old format (list of strings) and new format (list of dicts)
+        if isinstance(genres[0], str):
+            return genres
+        else:
+            return [genre.get("title", "") for genre in genres if genre.get("title")]
 
     @classmethod
     def get_analyze_dirs(cls) -> List[str]:

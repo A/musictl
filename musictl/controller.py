@@ -609,7 +609,8 @@ class Controller:
                 print("Initializing AI analyzer...")
                 self.ai_analyzer = AIAnalyzer()
 
-            print(f"Starting AI analysis with genres: {', '.join(genres)}")
+            genre_titles = Config.get_analyze_genre_titles()
+            print(f"Starting AI analysis with genres: {', '.join(genre_titles)}")
             if dry_run:
                 print("DRY RUN MODE - No files will be modified")
             if force:
