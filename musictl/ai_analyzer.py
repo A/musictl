@@ -7,7 +7,13 @@ from mutagen import File as MutagenFile
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.tools.duckduckgo import DuckDuckGoTools
+from pydantic import BaseModel, Field
 from .config import Config
+
+
+class GenreAnalysisResult(BaseModel):
+    """Schema for genre analysis result."""
+    genres: List[str] = Field(description="List of matching genres", default_factory=list)
 
 
 class AIAnalyzer:
@@ -25,15 +31,16 @@ class AIAnalyzer:
         try:
             self.agent = Agent(
                 description="Music Genre Analysis Assistant",
-                model=OpenAIChat(id="gpt-4o-mini", temperature=0.1),
+                model=OpenAIChat(id="gpt-4o", temperature=0.1),
                 tools=[
-                    DuckDuckGoTools(),
+                    DuckDuckGoTools(cache_results=True, fixed_max_results=3),
                 ],
                 system_message=self._get_system_message(),
                 instructions=self._get_instructions(),
+                output_schema=GenreAnalysisResult,
                 exponential_backoff=True,
                 delay_between_retries=2,
-                debug_mode=True
+                # debug_mode=True
             )
             self.logger.info("AI Agent initialized successfully")
         except Exception as e:
@@ -66,19 +73,29 @@ genres it matches with.
 
 - ALWAYS use only available genres
 - NEVER make up genres
-- ALWAYS use web search to get more information before decision
 - USE both english and russian languages for search. Especially if track information in russian.
+
+## Web Search Rules:
+
+1. Search for artist information and genres "[artist] [] genre"
+2. Search for album genres "[artist] [album] genre"
+3. Search for soundtrack "[artist] - [album] - [track] is a soundtrack for movie or a game?"
+
+If it's clear after direct question about album genre, you can stop, and proceed to the response generation.
+
+If not, try to search artist social networks:
+
+1. Search for soundcloud "[artist] - [track] [country?] soundcloud"
+2. Search for youtube "[artist] - [track] [country?] youtube"
+3. Search for spotify "[artist] - [track] [country?] spotify"
+
 
 ## Genre Matching Rules:
 
 1. You need to take track information as well as a list of user defined genres. Look into path, parent directory of a track
    might contain some hints.
-2. You need to search for track information in the web:
-    - Artist information
-    - reviews
-    - album reviews
-    - is it a soundtrack for a game or a movie
-3. Based on the web search you need to select proper genres for the track from the list user provided
+2. Search for track genres in the web.
+3. Select genres for the track from the list user provided
 4. If multiple genres or a root genre and a sug-genre match with a track, return all of them
 5. You need to return them as an array in resulting json response
 
@@ -94,6 +111,7 @@ In this case return an empty list in response
              It stays for very dark sometimes horror orchestral music, like Elden Ring Soundtrack.
 - IMPORTANT: Russian rap is very specific genre, that should aways be used along with rap root genre.
              Double check this genre and never attach it just if artist is just russian.
+             NEVER translate artist name or track name.
 - IMPORTANT: Soundtracks should always be explicitly and exclusively written for a movie or a game.
              If a track was released by an artist and then just used in the movie or a game, omit soundtrack genre.
              Examples: Witcher Soundtrack, Elden Ring Soundtrack, Hanz Zimmer Dune OST, etc.
@@ -122,21 +140,14 @@ most likely may match with this genre, or some extra specific extends the genre 
 - Russian Rap, House
 - House, Chillhop
 
-You must respond with a JSON object containing the analysis results.
+You must respond with a structured result containing the analysis results.
 """
 
     def _get_instructions(self) -> str:
         """Get instructions for the AI agent."""
-        return """For each track, analyze its metadata and determine which genre from the list best fits the track. 
-If the track doesn't clearly fit any of the available genres, return an empty string.
-Focus on the musical style, not just the artist's typical genre.
-
-You must respond with a JSON object in the following format:
-{
-    "genres": ["genre1", "genre2"] or []
-}
-
-If no genres match, return: {"genres": []}"""
+        return """
+Return the genres as a list. If no genres match, return an empty list.
+"""
 
     def _get_prompt(self, track_path: Path, genres: List[dict]) -> str:
         """Generate analysis prompt for a specific track."""
@@ -203,12 +214,12 @@ Path: {track_path}"""
         """Analyze a single track and return the suggested genre."""
         try:
             # Check if track was already analyzed (unless force is True)
-            if 'Pilar' not in str(track_path):
-                return 'SKIPPED'
+            # if 'Pilar' not in str(track_path):
+            #     return 'SKIPPED'
 
-            # if not force:
-            #     if self._is_track_analyzed(track_path):
-            #         return "SKIPPED"
+            if not force:
+                if self._is_track_analyzed(track_path):
+                    return "SKIPPED"
             
             genres = self.config.get_analyze_genres()
             if not genres:
@@ -219,21 +230,24 @@ Path: {track_path}"""
             # Don't log here to avoid duplicate messages
             
             response = self.agent.run(prompt)
-            response_content = response.content.strip() if hasattr(response, 'content') and response.content else ""
             
-            if not response_content:
+            if not response or not hasattr(response, 'content'):
                 print(f"  ✗ No response from AI for {track_path.name}")
                 return ""
             
-            # Parse JSON response
-            try:
-                import json
-                response_data = json.loads(response_content)
-                suggested_genres = response_data.get("genres", [])
-            except (json.JSONDecodeError, AttributeError) as e:
-                self.logger.warning(f"Failed to parse JSON response for {track_path.name}: {e}")
-                print(f"  ✗ Invalid response format for {track_path.name}")
-                return ""
+            # Get the structured result
+            if hasattr(response, 'content') and isinstance(response.content, GenreAnalysisResult):
+                suggested_genres = response.content.genres
+            else:
+                # Fallback to parsing JSON if needed
+                try:
+                    import json
+                    response_data = json.loads(str(response.content))
+                    suggested_genres = response_data.get("genres", [])
+                except (json.JSONDecodeError, AttributeError) as e:
+                    self.logger.warning(f"Failed to parse response for {track_path.name}: {e}")
+                    print(f"  ✗ Invalid response format for {track_path.name}")
+                    return ""
             
             if not suggested_genres:
                 print(f"  ✗ No suitable genre found for {track_path.name}")
