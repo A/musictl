@@ -2,6 +2,7 @@
 import shutil
 import mutagen
 import tempfile
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -22,6 +23,31 @@ class Controller:
         self.ui = UIManager()
         self.mpris = Mpris()
         self.cue_splitter = CueSplitter()
+
+    def _sanitize_filename(self, filename: str) -> str:
+        """Sanitize filename to be safe for all filesystems and foldersync."""
+        # Characters that are problematic in filenames across different filesystems
+        # and especially for sync services like foldersync
+        unsafe_chars = r'[<>:"/\\|?*&!#%{}[\]`~;=+@$^()\'"]'
+        
+        # Replace unsafe characters with underscores
+        sanitized = re.sub(unsafe_chars, '_', filename)
+        
+        # Replace multiple underscores with single underscore
+        sanitized = re.sub(r'_+', '_', sanitized)
+        
+        # Remove leading/trailing underscores and whitespace
+        sanitized = sanitized.strip('_ ')
+        
+        # Handle edge cases
+        if not sanitized or sanitized in ['.', '..']:
+            sanitized = 'unnamed_file'
+        
+        # Limit length to be safe (most filesystems support 255 chars)
+        if len(sanitized) > 200:  # Leave room for extension
+            sanitized = sanitized[:200].rstrip('_')
+        
+        return sanitized
 
     def _get_root_items(self) -> List[str]:
         """Get menu items for root directories."""
@@ -351,11 +377,14 @@ class Controller:
                             artist, album, tracks = self.cue_splitter.parse_cue(cue_file)
                             extracted = self.cue_splitter.split_audio(audio_file, tracks, temp_dir)
                             
-                            # Rename extracted files to final format
+                            # Rename extracted files to final format with sanitized names
                             for i, extracted_file in enumerate(extracted):
                                 if i < len(tracks):
                                     track = tracks[i]
-                                    final_name = f"{track.performer} - {album} - {track.number:02d} - {track.title}{extracted_file.suffix}"
+                                    # Create filename and sanitize it
+                                    base_filename = f"{track.performer} - {album} - {track.number:02d} - {track.title}"
+                                    sanitized_filename = self._sanitize_filename(base_filename)
+                                    final_name = f"{sanitized_filename}{extracted_file.suffix}"
                                     final_path = temp_dir / final_name
                                     extracted_file.rename(final_path)
                                     temp_extracted_files.append(final_path)
@@ -399,13 +428,18 @@ class Controller:
 
             for file_path in all_files:
                 try:
-                    # For extracted files, filename already contains metadata
+                    # For extracted files, filename already contains metadata but needs sanitization
                     if file_path in temp_extracted_files:
-                        new_filename = file_path.name
+                        # Re-sanitize in case the temp file wasn't properly sanitized
+                        base_name = file_path.stem
+                        sanitized_name = self._sanitize_filename(base_name)
+                        new_filename = f"{sanitized_name}{file_path.suffix}"
                     else:
-                        # Extract metadata from tags for regular files
+                        # Extract metadata from tags for regular files and sanitize
                         artist, album, track_num, title = self._extract_metadata(file_path)
-                        new_filename = f"{artist} - {album} - {track_num} - {title}{file_path.suffix}"
+                        base_filename = f"{artist} - {album} - {track_num} - {title}"
+                        sanitized_filename = self._sanitize_filename(base_filename)
+                        new_filename = f"{sanitized_filename}{file_path.suffix}"
 
                     # Copy file to target directory
                     target_file = target_path / new_filename
