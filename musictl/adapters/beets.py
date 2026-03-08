@@ -15,7 +15,17 @@ class BeetsAdapter:
 
     def query(self, query: str) -> list[dict[str, str]]:
         logger.debug("Querying: %s", query or "(all)")
-        items = self._lib.items(query)
+        if query.startswith("path:"):
+            # Exact path match in Python to avoid beets query parser issues
+            # with special characters (commas, colons, etc.) in file paths
+            target = query[5:]
+            items = [
+                item
+                for item in self._lib.items("")
+                if (item.path.decode() if isinstance(item.path, bytes) else str(item.path)) == target
+            ]
+        else:
+            items = self._lib.items(query)
         results = [
             {
                 "id": str(item.id),
@@ -50,7 +60,7 @@ class BeetsAdapter:
 
     def remove(self, query: str, delete: bool = False) -> None:
         logger.info("Remove: %s (delete=%s)", query, delete)
-        cmd = ["beet", "remove", "-y", query]
+        cmd = ["beet", "remove", "-f", query]
         if delete:
             cmd.insert(2, "-d")
         subprocess.run(cmd, check=True)

@@ -66,15 +66,11 @@ def update() -> None:
 
     new_playlists = ",".join(selected_playlists)
     logger.info("Updating: folder=%s, playlists=%s", new_folder, new_playlists)
-    path = track.get("path", "")
-    if not path:
-        file = track.get("file", "")
-        if file:
-            path = str(settings.music_dir / file)
-    if not path:
-        print("Cannot determine track path.", file=sys.stderr)
+    track_id = track.get("id", "")
+    if not track_id:
+        print("Cannot determine track ID.", file=sys.stderr)
         sys.exit(1)
-    query = f"path:{path}"
+    query = f"id:{track_id}"
 
     beets.modify(
         query,

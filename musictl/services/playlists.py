@@ -91,7 +91,7 @@ class PlaylistService:
             names = [p.strip() for p in playlists_raw.split(",") if p.strip()]
             updated = [new_name if n == old_name else n for n in names]
             new_playlists = ",".join(updated)
-            query = f"path:{track['path']}"
+            query = f"id:{track['id']}"
             self._beets.modify(query, playlists=new_playlists, comments=f"playlists:{new_playlists}")
         self.regenerate()
 

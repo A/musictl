@@ -89,12 +89,12 @@ class TestSubprocessCommands:
     def test_remove(self, beets: BeetsAdapter):
         with patch("musictl.adapters.beets.subprocess.run") as mock_run:
             beets.remove("id:1", delete=True)
-            mock_run.assert_called_once_with(["beet", "remove", "-d", "-y", "id:1"], check=True)
+            mock_run.assert_called_once_with(["beet", "remove", "-d", "-f", "id:1"], check=True)
 
     def test_remove_without_delete(self, beets: BeetsAdapter):
         with patch("musictl.adapters.beets.subprocess.run") as mock_run:
             beets.remove("id:1")
-            mock_run.assert_called_once_with(["beet", "remove", "-y", "id:1"], check=True)
+            mock_run.assert_called_once_with(["beet", "remove", "-f", "id:1"], check=True)
 
     def test_import_tracks(self, beets: BeetsAdapter):
         with patch("musictl.adapters.beets.subprocess.run") as mock_run:

@@ -21,6 +21,6 @@ class LibraryService:
         tracks = self._beets.query(f"folder:{old}")
         logger.info("Found %d tracks to update", len(tracks))
         for track in tracks:
-            query = f"path:{track['path']}"
+            query = f"id:{track['id']}"
             self._beets.modify(query, folder=new, genre=new)
         self._beets.move(f"folder:{new}")

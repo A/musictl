@@ -44,10 +44,10 @@ class TrackService:
             logger.info("Delete cancelled by user")
             return False
         # Remove from beets (and delete file)
-        path = track.get("path", "")
-        if path:
-            logger.info("Deleting track: %s", path)
-            self._beets.remove(f"path:{path}", delete=True)
+        track_id = track.get("id", "")
+        if track_id:
+            logger.info("Deleting track id=%s: %s", track_id, track.get("path", ""))
+            self._beets.remove(f"id:{track_id}", delete=True)
         # Remove from MPD queue
         pos = self._mpd.current_position()
         if pos is not None:

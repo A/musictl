@@ -50,8 +50,8 @@ class TestRenameFolder:
     def test_updates_folder_and_genre_then_moves(self) -> None:
         beets = FakeBeets()
         beets._items = [
-            {"path": "/music/old/a.mp3", "folder": "old", "genre": "old"},
-            {"path": "/music/old/b.mp3", "folder": "old", "genre": "old"},
+            {"id": "1", "path": "/music/old/a.mp3", "folder": "old", "genre": "old"},
+            {"id": "2", "path": "/music/old/b.mp3", "folder": "old", "genre": "old"},
         ]
         service = LibraryService(beets, Settings())
 

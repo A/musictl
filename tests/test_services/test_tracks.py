@@ -134,12 +134,12 @@ class TestDeleteCurrent:
         mpd._position = 3
         beets = FakeBeets()
         full_path = str(Settings().music_dir / "track.mp3")
-        beets._items = [{"path": full_path, "title": "Song", "artist": "Artist"}]
+        beets._items = [{"id": "42", "path": full_path, "title": "Song", "artist": "Artist"}]
         dialog = FakeDialog(confirm_result=True)
         service = TrackService(mpd, beets, _settings())
 
         assert service.delete_current(dialog) is True
-        assert beets.removed == [(f"path:{full_path}", True)]
+        assert beets.removed == [("id:42", True)]
         assert mpd.deleted == [3]
         assert mpd.updated is True
 

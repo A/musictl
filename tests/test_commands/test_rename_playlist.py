@@ -70,7 +70,7 @@ class TestRenamePlaylistCommand:
             mpd = FakeMpd()
             beets = FakeBeets()
             beets._items = [
-                {"path": "/music/a.mp3", "folder": "rock", "playlists": "oldname,other"},
+                {"id": "1", "path": "/music/a.mp3", "folder": "rock", "playlists": "oldname,other"},
             ]
 
             with (

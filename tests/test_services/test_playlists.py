@@ -171,7 +171,7 @@ class TestRename:
             mpd = FakeMpd()
             beets = FakeBeets()
             beets._items = [
-                {"path": "/music/a.mp3", "folder": "rock", "playlists": "old_name,other"},
+                {"id": "1", "path": "/music/a.mp3", "folder": "rock", "playlists": "old_name,other"},
             ]
             service = PlaylistService(mpd, beets, settings)
 
@@ -179,6 +179,6 @@ class TestRename:
 
             assert len(beets.modifications) == 1
             query, fields = beets.modifications[0]
-            assert query == "path:/music/a.mp3"
+            assert query == "id:1"
             assert fields["playlists"] == "new_name,other"
             assert fields["comments"] == "playlists:new_name,other"
