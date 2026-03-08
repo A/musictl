@@ -29,13 +29,13 @@ paths:
 ## Installation
 
 ```bash
-# Clone and install with uv
-git clone https://github.com/anthropics/musictl  # replace with actual repo
-cd musictl
-uv sync
+# From PyPI
+uv tool install musictl
 
-# Install shell completions (bash/zsh/fish)
-uv run musictl --install-completion
+# Or from source
+git clone https://github.com/A/musictl
+cd musictl
+uv tool install -e .
 ```
 
 ## Commands
