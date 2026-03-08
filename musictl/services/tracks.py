@@ -48,10 +48,6 @@ class TrackService:
         if track_id:
             logger.info("Deleting track id=%s: %s", track_id, track.get("path", ""))
             self._beets.remove(f"id:{track_id}", delete=True)
-        # Remove from MPD queue
-        pos = self._mpd.current_position()
-        if pos is not None:
-            self._mpd.delete(pos)
         self._mpd.update()
         return True
 

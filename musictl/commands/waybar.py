@@ -26,13 +26,15 @@ def waybar() -> None:
     folder = track.get("folder", "")
     playlists = track.get("playlists", "")
 
-    parts = []
-    if folder:
-        parts.append(f"F:{folder}")
-    if playlists:
-        parts.append(f"P:{playlists}")
-
-    text = " ".join(parts)
+    if not folder and not playlists:
+        text = "  Inbox"
+    else:
+        parts = []
+        if folder:
+            parts.append(f"  {folder} ")
+        if playlists:
+            parts.append(f"  {playlists}")
+        text = " ".join(parts)
     artist = track.get("artist", "")
     title = track.get("title", "")
     tooltip = f"{artist} - {title}" if artist and title else ""

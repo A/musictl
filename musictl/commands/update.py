@@ -20,8 +20,7 @@ def update() -> None:
     """Show a dialog to update folder and playlists for the currently playing track.
 
     Sets folder, genre (synced to folder), playlists, and comments fields.
-    Moves the file to match the new folder, regenerates playlists, and
-    removes the track from the MPD queue.
+    Moves the file to match the new folder and regenerates playlists.
     """
     mpd = MpdAdapter()
     beets = BeetsAdapter()
@@ -82,5 +81,3 @@ def update() -> None:
 
     playlist_service = PlaylistService(mpd, beets, settings)
     playlist_service.regenerate()
-
-    track_service.clean_current()
