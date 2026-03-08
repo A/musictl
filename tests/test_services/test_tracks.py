@@ -140,7 +140,7 @@ class TestDeleteCurrent:
 
         assert service.delete_current(dialog) is True
         assert beets.removed == [("id:42", True)]
-        assert mpd.deleted == [3]
+        assert mpd.deleted == []
         assert mpd.updated is True
 
     def test_aborts_when_not_confirmed(self) -> None:

@@ -8,7 +8,7 @@ class YadAdapter:
     def confirm(self, title: str, text: str) -> bool:
         logger.debug("Confirm dialog: %s — %s", title, text)
         result = subprocess.run(
-            ["yad", "--question", f"--title={title}", f"--text={text}"],
+            ["yad", "--question", f"--title={title}", f"--text={text}", "--height=1"],
             capture_output=True,
         )
         logger.debug("Confirm result: %s", "accepted" if result.returncode == 0 else "cancelled")

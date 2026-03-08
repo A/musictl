@@ -1,6 +1,6 @@
 [project]
 name = "musictl"
-version = "0.2.0"
+version = "0.2.1"
 description = "Music control utility for MPD + beets"
 authors = [
     {name = "Sanek", email = "anton@shuvalov.info"}

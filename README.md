@@ -90,6 +90,6 @@ bind = $mainMod CTRL, M, exec, musictl delete-current
 ```bash
 just check      # ruff check + basedpyright
 just fmt         # ruff fix + ruff format
-uv run pytest    # run tests
+just test        # run tests
 just sync        # uv sync dependencies
 ```

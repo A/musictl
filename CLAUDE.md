@@ -7,7 +7,7 @@ Music control CLI for MPD + beets. Python 3.13, cyclopts CLI, clean architecture
 ```bash
 just check      # ruff check + basedpyright
 just fmt         # ruff fix + ruff format
-uv run pytest    # run tests
+just test        # run tests
 just sync        # uv sync dependencies
 ```
 

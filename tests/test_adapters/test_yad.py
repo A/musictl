@@ -10,7 +10,7 @@ class TestConfirm:
 
         assert YadAdapter().confirm("Delete?", "Are you sure?") is True
         mock_run.assert_called_once_with(
-            ["yad", "--question", "--title=Delete?", "--text=Are you sure?"],
+            ["yad", "--question", "--title=Delete?", "--text=Are you sure?", "--height=1"],
             capture_output=True,
         )
 
