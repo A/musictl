@@ -1,71 +1,58 @@
-#!/usr/bin/env python3
-import sys
-import signal
-from .controller import Controller
+from typing import Annotated
+
+import cyclopts
+from cyclopts import Group, Parameter
+
+from musictl.commands import (
+    clean_current,
+    cue_split,
+    delete_current,
+    generate_playlists,
+    import_tracks,
+    play,
+    rename_folder,
+    rename_playlist,
+    search,
+    update,
+    waybar,
+)
+from musictl.log import setup_logging
+
+app = cyclopts.App(name="musictl", help="Music control utility for MPD + beets")
+app.meta.group_parameters = Group("Global Options", sort_key=0)
+
+app.command(search.app)
+app.command(play.app)
+app.command(update.app)
+app.command(delete_current.app, name="delete-current")
+app.command(clean_current.app, name="clean-current")
+app.command(import_tracks.app, name="import")
+app.command(cue_split.app, name="cue-split")
+app.command(generate_playlists.app, name="generate-playlists")
+app.command(rename_playlist.app, name="rename-playlist")
+app.command(rename_folder.app, name="rename-folder")
+app.command(waybar.app)
+app.register_install_completion_command()
 
 
-def signal_handler(sig, frame):
-    """Handle Ctrl+C gracefully."""
-    print("\n\nInterrupted by user. Cleaning up...")
-    sys.exit(0)
+@app.meta.default
+def launcher(
+    *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
+    verbose: Annotated[int, Parameter(name=["-v", "--verbose"], show_default=False)] = 0,
+) -> None:
+    """Global options.
+
+    Parameters
+    ----------
+    verbose: int
+        Increase output verbosity (-v info, -vv debug, -vvv trace).
+    """
+    setup_logging(verbose)
+    app(tokens)
 
 
 def main():
-    """Main entry point."""
-    # Set up signal handler for Ctrl+C
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    if len(sys.argv) < 2:
-        print("Usage: musictl <command>")
-        print("Commands:")
-        print("  select          - Browse and play music")
-        print("  search          - Search and play a specific track")
-        print("  pick <dir>      - Move current track to directory")
-        print("  delete          - Delete current track")
-        print("  import <dir> <source> - Import tracks from source to target directory")
-        print("  ai-analyze      - AI-powered genre analysis for music tracks")
-        print("                    Options: --dry-run (preview), --force (re-analyze all)")
-        return
-    
-    command = sys.argv[1]
-    controller = Controller()
-    
-    try:
-        if command == "select":
-            controller.start()
-        elif command == "search":
-            controller.search()
-        elif command == "pick":
-            if len(sys.argv) < 3:
-                print("Usage: musictl pick <directory>")
-                return
-            
-            target_dir = sys.argv[2]
-            controller.pick(target_dir)
-        elif command == "delete":
-            controller.delete()
-        elif command == "import":
-            if len(sys.argv) < 4:
-                print("Usage: musictl import <target_dir/subdir> <source_dir>")
-                print("Example: musictl import collection/indie_inbox ~/Downloads/Artist")
-                return
-            
-            target_dir = sys.argv[2]
-            source_dir = sys.argv[3]
-            controller.import_tracks(target_dir, source_dir)
-        elif command == "ai-analyze":
-            dry_run = "--dry-run" in sys.argv
-            force = "--force" in sys.argv
-            controller.ai_analyze(dry_run, force)
-        else:
-            print(f"Unknown command: {command}")
-    
-    except KeyboardInterrupt:
-        print("\n\nOperation cancelled by user.")
-        sys.exit(0)
-    except Exception as e:
-        print(f"\nError: {e}")
-        sys.exit(1)
+    app.meta()
 
 
 if __name__ == "__main__":

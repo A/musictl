@@ -1,0 +1,76 @@
+name: Publish
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(grep -m1 '^version' pyproject.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Tag v${{ steps.version.outputs.version }} already exists, skipping release"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "Will release v${{ steps.version.outputs.version }}"
+          fi
+
+  publish:
+    needs: [resolve]
+    if: needs.resolve.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run basedpyright musictl
+      - run: uv run pytest
+      - run: uv build
+      - run: uv publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Generate changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --unreleased --strip header --tag v${{ needs.resolve.outputs.version }}
+
+      - name: Generate release notes
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CHANGELOG: ${{ steps.changelog.outputs.content }}
+        run: |
+          bash scripts/generate-release-notes.sh "$CHANGELOG" > release-notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ needs.resolve.outputs.version }}" \
+            --title "v${{ needs.resolve.outputs.version }}" \
+            --notes-file release-notes.md

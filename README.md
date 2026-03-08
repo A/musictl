@@ -1,62 +1,95 @@
 # Musictl
 
-A lightweight command‑line tool for managing and playing your music library via **wofi**.
+Music control CLI for **MPD** + **beets**. Manage your library, playlists, and playback from the terminal.
 
-## Features
+## Prerequisites
 
-* Browse folders and start playlists in a few clicks
-* Fuzzy search across every track
-* Move or delete the currently playing song
-* Import new music with automatic renaming and tagging
-* Works with any **MPRIS**‑compatible player (DeadBeef, MPD, VLC, etc.)
-* Fully configurable through a YAML file
+- **Python ≥ 3.13**
+- **MPD** — running and configured
+- **beets** — with library database and custom fields (`folder`, `playlists`, `comments`)
+- **YAD** — for interactive dialogs (`update`, `delete-current`)
+- **FFmpeg** — for `cue-split`
 
-## Quick Start
+### Beets Setup
 
-### Requirements
+Musictl expects these beets flexible attributes:
 
-* **Python ≥ 3.13**
-* **wofi** (launcher)
-* A music player that supports MPRIS
+- `folder` — organizes tracks into directories (also synced to `genre`)
+- `playlists` — comma-separated playlist names
+- `comments` — synced to `playlists:$playlists` for external readers
 
-### Installation
-
-```bash
-# Dependencies
-pip install pyrofi pyyaml dbus-python mutagen
-
-# Musictl
-git clone https://<repo>/musictl
-cd musictl
-pip install -e .
-```
-
-## Configuration
-
-Edit `~/.config/musictl/config.yml` (example):
+Beets path config should include:
 
 ```yaml
-base_path: ~/Dropbox              # Root of your library
-ignored_dirs: [downloads, .git, __pycache__]
-music_directories: [collection, inbox, dj]
-music_extensions: [.mp3, .flac, .wav, .ogg, .m4a]
-player_command: deadbeef
-track_count_options: [10, 50, 100, ALL]
-import_log_file: ~/.config/musictl/import.log
+paths:
+  "folder::.+": $folder/$artist - $album - $track - $title
+  default: inbox/$genre/$artist - $album - $track - $title
 ```
 
-## Main Commands
+## Installation
 
-| Command                            | What it does                                                           |
-| ---------------------------------- | ---------------------------------------------------------------------- |
-| `musictl select`                   | Open wofi, choose a folder, play N random tracks                       |
-| `musictl search`                   | Fuzzy‑search for a track and play it                                   |
-| `musictl pick <dir>`               | Move current track to `<dir>/<subdir>/YYYY-MM/`                        |
-| `musictl delete`                   | Delete current track (with confirmation)                               |
-| `musictl import <target> <source>` | Copy files from `<source>` into `<target>/YYYY-MM/` with auto‑renaming |
+```bash
+# Clone and install with uv
+git clone https://github.com/anthropics/musictl  # replace with actual repo
+cd musictl
+uv sync
 
-## Typical Workflow
+# Install shell completions (bash/zsh/fish)
+uv run musictl --install-completion
+```
 
-1. Download an album to `~/Downloads`.
-2. Run `musictl import collection/rock ~/Downloads/Album`.
-3. Files are renamed to `Artist - Album - 01 - Title.mp3` and logged to `~/.config/musictl/import.log`.
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `musictl search <query>` | Search beets library, print relative paths |
+| `musictl play <playlist>` | Load and play a playlist |
+| `musictl play --random [--count N]` | Play N random tracks |
+| `musictl update` | Set folder/playlists on current track via YAD dialog |
+| `musictl delete-current` | Delete current track from library and disk |
+| `musictl clean-current` | Remove current track from MPD queue |
+| `musictl import [args]` | Import tracks via `beet import` |
+| `musictl cue-split <file> --cue <cue>` | Split audio file by CUE sheet |
+| `musictl generate-playlists` | Regenerate all .m3u playlist files |
+| `musictl rename-playlist <old> <new>` | Rename a playlist across all tracks |
+| `musictl rename-folder <old> <new>` | Rename a folder, move files, update tags |
+| `musictl waybar` | JSON output for waybar custom module |
+
+### Piping
+
+```bash
+# Search and play results
+musictl search 'artist:Beatles' | musictl play
+
+# Chain: update current track, then remove from queue
+musictl update && musictl clean-current
+```
+
+### Waybar Integration
+
+Add to your waybar config:
+
+```json
+"custom/music": {
+    "exec": "musictl waybar",
+    "interval": 5,
+    "return-type": "json"
+}
+```
+
+### Hyprland Keybindings
+
+```conf
+bind = $mainMod, M, exec, musictl play --random --count 20
+bind = $mainMod SHIFT, M, exec, musictl update
+bind = $mainMod CTRL, M, exec, musictl delete-current
+```
+
+## Development
+
+```bash
+just check      # ruff check + basedpyright
+just fmt         # ruff fix + ruff format
+uv run pytest    # run tests
+just sync        # uv sync dependencies
+```

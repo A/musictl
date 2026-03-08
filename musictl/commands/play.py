@@ -1,0 +1,74 @@
+import logging
+import random as random_mod
+import sys
+from pathlib import Path
+
+import cyclopts
+
+from musictl.adapters.beets import BeetsAdapter
+from musictl.adapters.mpd import MpdAdapter
+from musictl.config import settings
+from musictl.services.playlists import PlaylistService
+
+logger = logging.getLogger(__name__)
+
+app = cyclopts.App(name="play", help="Play tracks or playlists")
+
+
+@app.default
+def play(
+    playlist: str | None = None,
+    *,
+    random: bool = False,
+    count: int = 10,
+) -> None:
+    """Play a named playlist or tracks from stdin.
+
+    Usage:
+        musictl play rock
+        musictl play rock --random --count 5
+        musictl play --random --count 20
+        musictl search 'artist:Beatles' | musictl play
+    """
+    mpd = MpdAdapter()
+
+    if random:
+        logger.info("Random mode: count=%d, playlist=%s", count, playlist or "(all)")
+        if playlist is not None:
+            tracks = mpd.list_playlist_tracks(playlist)
+        else:
+            beets = BeetsAdapter()
+            tracks = [str(Path(t["path"]).relative_to(settings.music_dir)) for t in beets.query("") if t.get("path")]
+        if not tracks:
+            print("No tracks found.", file=sys.stderr)
+            sys.exit(1)
+        selected = random_mod.sample(tracks, min(count, len(tracks)))
+        logger.info("Selected %d random tracks from %d", len(selected), len(tracks))
+        mpd.clear()
+        for path in selected:
+            mpd.add(path)
+        mpd.play()
+        return
+
+    if playlist is not None:
+        logger.info("Loading playlist: %s", playlist)
+        beets = BeetsAdapter()
+        service = PlaylistService(mpd, beets, settings)
+        service.load(playlist)
+        mpd.play()
+        return
+
+    if sys.stdin.isatty():
+        print("No playlist specified and no input piped. See --help.", file=sys.stderr)
+        sys.exit(1)
+
+    paths = [line.strip() for line in sys.stdin if line.strip()]
+    logger.info("Playing %d tracks from stdin", len(paths))
+    if not paths:
+        print("No tracks provided.", file=sys.stderr)
+        sys.exit(1)
+
+    mpd.clear()
+    for path in paths:
+        mpd.add(path)
+    mpd.play()

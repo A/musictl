@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run basedpyright musictl/
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: pytest
+        name: pytest
+        entry: uv run pytest tests/ -x -q
+        language: system
+        types: [python]
+        pass_filenames: false
