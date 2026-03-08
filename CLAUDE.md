@@ -11,6 +11,10 @@ uv run pytest    # run tests
 just sync        # uv sync dependencies
 ```
 
+## Runtime
+
+- Always use `uv run` to execute Python and any venv-dependent commands (e.g. `uv run python`, `uv run pytest`, `uv run musictl`). Never invoke `python` or venv scripts directly.
+
 ## Architecture
 
 Adapters → Services → Commands. All adapter dependencies flow through Protocol interfaces.

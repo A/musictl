@@ -186,9 +186,9 @@ class DialogBackend(Protocol):
 - [x] `musictl waybar` — output current track folder/playlists as JSON for waybar custom module
 
 ### Step 8: Shell Completions & README
-- [ ] Configure cyclopts shell completion generation
-- [ ] Dynamic completions for playlist names, folder names (from beets)
-- [ ] Update README.md:
+- [x] Configure cyclopts shell completion generation (`register_install_completion_command()` → `--install-completion`)
+- [ ] Dynamic completions for playlist names, folder names (from beets) — deferred, cyclopts lacks custom completion callbacks
+- [x] Update README.md:
   - New feature list and command reference
   - Prerequisites: MPD setup, beets setup (config, plugins, custom fields)
   - Installation via uv

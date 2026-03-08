@@ -32,6 +32,7 @@ app.command(generate_playlists.app, name="generate-playlists")
 app.command(rename_playlist.app, name="rename-playlist")
 app.command(rename_folder.app, name="rename-folder")
 app.command(waybar.app)
+app.register_install_completion_command()
 
 
 @app.meta.default
