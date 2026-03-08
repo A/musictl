@@ -12,7 +12,7 @@ fmt:
     uv run ruff format .
 
 typecheck:
-    uv run basedpyright
+    uv run basedpyright musictl
 
 sync:
     uv sync
