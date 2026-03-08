@@ -115,7 +115,7 @@ class DialogBackend(Protocol):
 - [x] Create `.pre-commit-config.yaml` (ruff, basedpyright)
 - [x] Create directory structure: `musictl/adapters/`, `musictl/services/`, `musictl/commands/`, `tests/`
 - [x] Create `musictl/__main__.py` with empty cyclopts app
-- [x] Create `musictl/config.py` with settings (music_dir, mpd_host, mpd_port, beets_db_path)
+- [x] Create `musictl/config.py` with settings (music_dir, mpd_host, mpd_port, beets_db_path, playlists_dir)
 - [x] Create `musictl/protocols.py` with adapter interfaces
 - [x] Verify `just check` passes on empty project
 
@@ -128,7 +128,6 @@ class DialogBackend(Protocol):
   - `query(q)` → list of item dicts (path, artist, title, folder, playlists, id)
   - `get_field(q, field)`, `modify(q, **fields)`, `all_folders()`, `all_playlists()`
   - `move(q)`, `remove(q, delete)`, `import_tracks(*args)`, `random(n, q)` via subprocess (`beet move`, `beet remove`, `beet import`, `beet random`)
-  - `sync_comments(q)` — sync playlists field to comments
 - [x] Implement `FfmpegAdapter` wrapping `ffcuesplitter`:
   - `split_cue(audio_file, cue_file, output_dir)` → list of output file paths
 - [x] Implement `YadAdapter`:
