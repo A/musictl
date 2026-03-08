@@ -170,9 +170,9 @@ class DialogBackend(Protocol):
 - [x] `musictl clean-current` — simply remove current track position from MPD queue (designed to be chained: `musictl update && musictl clean-current`)
 
 ### Step 6: Commands — import, cue-split, generate-playlists
-- [ ] `musictl import .` — wrapper around `beet import`
-- [ ] `musictl cue-split <file> -c <cue>` — uses `CueSplitService` → `FfmpegAdapter` to split audio
-- [ ] `musictl generate-playlists` — call `PlaylistService.generate_all()`, write .m3u files to `~/Music/playlists/`
+- [x] `musictl import .` — wrapper around `beet import`
+- [x] `musictl cue-split <file> -c <cue>` — uses `CueSplitService` → `FfmpegAdapter` to split audio
+- [x] `musictl generate-playlists` — call `PlaylistService.generate_all()`, write .m3u files to `~/Music/playlists/`
 
 ### Step 7: Commands — rename-playlist, rename-folder
 - [ ] `musictl rename-playlist <old> <new>` — update playlists field across all matching tracks, sync comments, regenerate playlists
