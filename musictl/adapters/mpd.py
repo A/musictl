@@ -51,6 +51,10 @@ class MpdAdapter:
         self._ensure_connected()
         return [p["playlist"] for p in self._client.listplaylists()]
 
+    def list_playlist_tracks(self, name: str) -> list[str]:
+        self._ensure_connected()
+        return self._client.listplaylist(name)
+
     def search(self, query: str) -> list[dict[str, str]]:
         self._ensure_connected()
         return self._client.search("any", query)

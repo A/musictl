@@ -9,10 +9,12 @@ class YadAdapter:
         )
         return result.returncode == 0
 
-    def form(self, title: str, fields: list) -> list[str] | None:
+    def form(self, title: str, fields: list[str], values: list[str] | None = None) -> list[str] | None:
         cmd = ["yad", "--form", f"--title={title}", "--separator=|"]
         for field in fields:
             cmd.append(f"--field={field}")
+        if values:
+            cmd.extend(values)
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return None

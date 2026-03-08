@@ -1,3 +1,4 @@
+import random as random_mod
 import sys
 
 import cyclopts
@@ -11,17 +12,37 @@ app = cyclopts.App(name="play", help="Play tracks or playlists")
 
 
 @app.default
-def play(playlist: str | None = None) -> None:
+def play(
+    playlist: str | None = None,
+    *,
+    random: bool = False,
+    count: int = 10,
+) -> None:
     """Play a named playlist or tracks from stdin.
 
-    If --playlist is given, loads that MPD playlist.
-    Otherwise, reads track paths (relative to music dir) from stdin, one per line.
-
     Usage:
-        musictl play --playlist rock
+        musictl play rock
+        musictl play rock --random --count 5
+        musictl play --random --count 20
         musictl search 'artist:Beatles' | musictl play
     """
     mpd = MpdAdapter()
+
+    if random:
+        if playlist is not None:
+            tracks = mpd.list_playlist_tracks(playlist)
+        else:
+            beets = BeetsAdapter()
+            tracks = [t.get("path", "") for t in beets.query("") if t.get("path")]
+        if not tracks:
+            print("No tracks found.", file=sys.stderr)
+            sys.exit(1)
+        selected = random_mod.sample(tracks, min(count, len(tracks)))
+        mpd.clear()
+        for path in selected:
+            mpd.add(path)
+        mpd.play()
+        return
 
     if playlist is not None:
         beets = BeetsAdapter()

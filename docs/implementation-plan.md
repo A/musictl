@@ -138,12 +138,13 @@ class DialogBackend(Protocol):
 - [x] Type stubs for untyped libraries (mpd, ffcuesplitter) in `stubs/`
 
 ### Step 3: Service Layer
-- [ ] `TrackService(mpd: MpdBackend, beets: BeetsBackend)`:
+- [x] `TrackService(mpd: MpdBackend, beets: BeetsBackend, settings: Settings)`:
   - `current_track()` → returns current track info from MPD + beets enrichment
   - `search(query: str)` → beets query results
-  - `delete_current(confirm: bool)` → yad confirm, beet remove -d, mpd queue update
+  - `delete_current(dialog: DialogBackend)` → yad confirm, beet remove -d, mpd queue update
   - `clean_current()` → remove current track from MPD queue (`mpd.delete(pos)`)
-- [ ] `PlaylistService(mpd: MpdBackend, beets: BeetsBackend)`:
+  - `relative_path(absolute_path)` → convert absolute path to music_dir-relative
+- [x] `PlaylistService(mpd: MpdBackend, beets: BeetsBackend, settings: Settings)`:
   - `load(name: str)` → `mpd.clear()` + `mpd.load_playlist(name)`
   - `generate_all()` → generates all playlist types:
     - inbox.m3u — tracks without `folder`
@@ -151,23 +152,22 @@ class DialogBackend(Protocol):
     - {folder}.m3u — by `folder` field
     - no_playlist.m3u — tracks with folder but no playlists
   - `rename(old_name, new_name)` → update `playlists` field on all matching tracks, sync comments, regenerate
-- [ ] `LibraryService(beets: BeetsBackend)`:
+- [x] `LibraryService(beets: BeetsBackend, settings: Settings)`:
   - `import_tracks(*args)` → delegate to `beet import`
   - `rename_folder(old, new)` → update `folder` field on matching tracks, `beet move`
-- [ ] `CueSplitService(ffmpeg: FfmpegBackend)`:
+- [x] `CueSplitService(ffmpeg: FfmpegBackend)`:
   - `split(file, cue)` → split audio file by CUE sheet, return output paths
-- [ ] Unit tests with mocked adapters
+- [x] Unit tests with mocked adapters
 
 ### Step 4: Commands — play, search, random
-- [ ] `musictl search <query>` — `beets.query(query)` → print results, add to MPD, play
-- [ ] `musictl play playlist <playlist>` — `mpd.clear()`, `mpd.load_playlist()`, `mpd.play()`
-- [ ] `musictl random <playlist> [--count N]` — load playlist tracks, pick N random, add to MPD, play
-- [ ] Wire commands in `__main__.py` via cyclopts
+- [x] `musictl search <query>` — `beets.query(query)` → print relative paths, one per line
+- [x] `musictl play [--playlist <name>] [--random] [--count N] [--query Q]` — load MPD playlist, play random tracks, or read track paths from stdin
+- [x] Wire commands in `__main__.py` via cyclopts
 
 ### Step 5: Commands — update, delete-current, clean-current
-- [ ] `musictl update` — get current track from MPD, lookup in beets, show yad form (folder CBE + playlist checkboxes), apply modifications, `beet move`, sync comments, regenerate playlists, remove from MPD queue
-- [ ] `musictl delete-current` — yad confirm, `beet remove -d`, remove from MPD queue, mpd update
-- [ ] `musictl clean-current` — simply remove current track position from MPD queue (designed to be chained: `musictl update && musictl clean-current`)
+- [x] `musictl update` — get current track from MPD, lookup in beets, show yad form (folder CBE + playlist checkboxes), apply modifications, `beet move`, sync comments, regenerate playlists, remove from MPD queue
+- [x] `musictl delete-current` — yad confirm, `beet remove -d`, remove from MPD queue, mpd update
+- [x] `musictl clean-current` — simply remove current track position from MPD queue (designed to be chained: `musictl update && musictl clean-current`)
 
 ### Step 6: Commands — import, cue-split, generate-playlists
 - [ ] `musictl import .` — wrapper around `beet import`

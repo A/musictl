@@ -24,7 +24,7 @@ Adapters → Services → Commands. All adapter dependencies flow through Protoc
 
 ## Current State
 
-Steps 1-2 of `docs/implementation-plan.md` are complete (scaffold + adapters + tests). Steps 3-8 (services, commands, completions) are not started.
+Steps 1-4 of `docs/implementation-plan.md` are complete (scaffold, adapters, services, and search/play/random commands). Next: Step 5 (update, delete-current, clean-current commands).
 
 ## Code Style
 
