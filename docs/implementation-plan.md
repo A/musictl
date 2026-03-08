@@ -120,22 +120,23 @@ class DialogBackend(Protocol):
 - [x] Verify `just check` passes on empty project
 
 ### Step 2: Adapters — MPD, Beets, Ffmpeg, YAD
-- [ ] Implement `MpdAdapter` wrapping `python-mpd2`:
+- [x] Implement `MpdAdapter` wrapping `python-mpd2`:
   - `connect()`, `current_song()`, `add(uri)`, `play()`, `clear()`, `delete(pos)`, `load_playlist(name)`, `list_playlists()`, `search(query)`, `update()`, `current_position()`, `queue_count()`
   - Auto-reconnect on connection loss
-- [ ] Implement `BeetsAdapter`:
+- [x] Implement `BeetsAdapter`:
   - Query/modify via `beets.library.Library` (open `~/.config/beets/library.db`)
   - `query(q)` → list of item dicts (path, artist, title, folder, playlists, id)
   - `get_field(q, field)`, `modify(q, **fields)`, `all_folders()`, `all_playlists()`
   - `move(q)`, `remove(q, delete)`, `import_tracks(*args)`, `random(n, q)` via subprocess (`beet move`, `beet remove`, `beet import`, `beet random`)
   - `sync_comments(q)` — sync playlists field to comments
-- [ ] Implement `FfmpegAdapter` wrapping `ffcuesplitter`:
+- [x] Implement `FfmpegAdapter` wrapping `ffcuesplitter`:
   - `split_cue(audio_file, cue_file, output_dir)` → list of output file paths
-- [ ] Implement `YadAdapter`:
+- [x] Implement `YadAdapter`:
   - `confirm(title, text)` → bool
   - `form(title, fields)` → list[str] | None (supports CBE, CHK, LBL, entry)
   - `notify(title, text)` → via `notify-send`
-- [ ] Unit tests with mocked backends
+- [x] Unit tests with mocked backends
+- [x] Type stubs for untyped libraries (mpd, ffcuesplitter) in `stubs/`
 
 ### Step 3: Service Layer
 - [ ] `TrackService(mpd: MpdBackend, beets: BeetsBackend)`:

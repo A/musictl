@@ -23,18 +23,42 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 target-version = "py313"
-line-length = 100
+line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+extend-select = ["PLC0415", "UP006", "UP007"]
+preview = true
 
 [tool.basedpyright]
 pythonVersion = "3.13"
 typeCheckingMode = "standard"
+stubPath = "stubs"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["."]
+reportExplicitAny = "none"
+reportAny = "none"
+reportImplicitOverride = "none"
+reportIgnoreCommentWithoutRule = "none"
+reportUnknownVariableType = "none"
+reportUnannotatedClassAttribute = "none"
+reportIncompatibleMethodOverride = "none"
+reportIncompatibleVariableOverride = "none"
+reportMissingTypeArgument = "none"
+reportUnknownMemberType = "none"
+reportUninitializedInstanceVariable = "none"
+reportImplicitStringConcatenation = "none"
+reportUnusedImport = "none"
+reportUnusedCallResult = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+exclude = ["tests"]
 
 [dependency-groups]
 dev = [
     "basedpyright>=1.38.2",
+    "pre-commit>=4.5.1",
     "pytest>=9.0.2",
     "ruff>=0.15.5",
 ]
