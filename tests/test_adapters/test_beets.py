@@ -72,19 +72,15 @@ class TestGetField:
         assert beets.get_field("id:999", "genre") == ""
 
 
-class TestModify:
-    def test_modifies_and_stores(self, beets: BeetsAdapter):
-        item = _make_item()
-        beets._lib.items.return_value = [item]
-
-        beets.modify("id:1", folder="jazz", genre="Jazz")
-
-        assert item.folder == "jazz"
-        assert item.genre == "Jazz"
-        item.store.assert_called_once()
-
-
 class TestSubprocessCommands:
+    def test_modify(self, beets: BeetsAdapter):
+        with patch("musictl.adapters.beets.subprocess.run") as mock_run:
+            beets.modify("id:1", folder="jazz", genre="Jazz")
+            mock_run.assert_called_once_with(
+                ["beet", "modify", "-y", "-m", "id:1", "folder=jazz", "genre=Jazz"],
+                check=True,
+            )
+
     def test_move(self, beets: BeetsAdapter):
         with patch("musictl.adapters.beets.subprocess.run") as mock_run:
             beets.move("id:1")

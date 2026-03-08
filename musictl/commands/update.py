@@ -1,3 +1,4 @@
+import logging
 import sys
 
 import cyclopts
@@ -8,6 +9,8 @@ from musictl.adapters.yad import YadAdapter
 from musictl.config import settings
 from musictl.services.playlists import PlaylistService
 from musictl.services.tracks import TrackService
+
+logger = logging.getLogger(__name__)
 
 app = cyclopts.App(name="update", help="Update current track metadata via dialog")
 
@@ -62,7 +65,15 @@ def update() -> None:
             selected_playlists.append(name)
 
     new_playlists = ",".join(selected_playlists)
+    logger.info("Updating: folder=%s, playlists=%s", new_folder, new_playlists)
     path = track.get("path", "")
+    if not path:
+        file = track.get("file", "")
+        if file:
+            path = str(settings.music_dir / file)
+    if not path:
+        print("Cannot determine track path.", file=sys.stderr)
+        sys.exit(1)
     query = f"path:{path}"
 
     beets.modify(
@@ -72,9 +83,11 @@ def update() -> None:
         playlists=new_playlists,
         comments=f"playlists:{new_playlists}",
     )
-    beets.move(query)
 
+    # Regenerate only affected playlists
+    affected_folders = {f for f in [current_folder, new_folder] if f}
+    affected_playlists = current_playlists | set(selected_playlists)
     playlist_service = PlaylistService(mpd, beets, settings)
-    playlist_service.generate_all()
+    playlist_service.regenerate(sorted(affected_folders), sorted(affected_playlists))
 
     track_service.clean_current()

@@ -46,6 +46,9 @@ class FakeBeets:
         if query.startswith("playlists:"):
             target = query[len("playlists:") :]
             return [i for i in self._items if target in [p.strip() for p in i.get("playlists", "").split(",")]]
+        if query.startswith("folder:"):
+            target = query[len("folder:") :]
+            return [i for i in self._items if i.get("folder", "") == target]
         return self._items
 
     def get_field(self, query: str, field: str) -> str:
@@ -96,9 +99,10 @@ class TestGenerateAll:
 
             written = service.generate_all()
 
-            assert len(written) == 1
+            assert len(written) == 2  # inbox + all
             content = (playlists_dir / "inbox.m3u").read_text()
             assert "new_track.mp3" in content
+            assert (playlists_dir / "all.m3u").exists()
 
     def test_generates_folder_playlists(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -128,6 +132,15 @@ class TestGenerateAll:
             # no_playlist
             no_pl_content = (playlists_dir / "no_playlist.m3u").read_text()
             assert "rock/b.mp3" in no_pl_content
+
+            # collection (all non-inbox)
+            collection_content = (playlists_dir / "collection.m3u").read_text()
+            assert "rock/a.mp3" in collection_content
+            assert "rock/b.mp3" in collection_content
+
+            # all tracks
+            all_content = (playlists_dir / "all.m3u").read_text()
+            assert "rock/a.mp3" in all_content
 
     def test_handles_multiple_comma_separated_playlists(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
