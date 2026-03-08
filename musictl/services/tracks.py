@@ -1,7 +1,10 @@
+import logging
 from pathlib import Path
 
 from musictl.config import Settings
 from musictl.protocols import BeetsBackend, DialogBackend, MpdBackend
+
+logger = logging.getLogger(__name__)
 
 
 class TrackService:
@@ -13,6 +16,7 @@ class TrackService:
     def current_track(self) -> dict[str, str] | None:
         song = self._mpd.current_song()
         if song is None:
+            logger.info("No track currently playing")
             return None
         file = song.get("file", "")
         if not file:
@@ -22,6 +26,9 @@ class TrackService:
         items = self._beets.query(f"path:{full_path}")
         if items:
             song.update(items[0])
+            logger.info("Current track: %s - %s", song.get("artist"), song.get("title"))
+        else:
+            logger.debug("No beets metadata for %s", file)
         return song
 
     def search(self, query: str) -> list[dict[str, str]]:
@@ -34,10 +41,12 @@ class TrackService:
         title = track.get("title", "Unknown")
         artist = track.get("artist", "Unknown")
         if not dialog.confirm("Delete track", f"Delete '{artist} - {title}'?"):
+            logger.info("Delete cancelled by user")
             return False
         # Remove from beets (and delete file)
         path = track.get("path", "")
         if path:
+            logger.info("Deleting track: %s", path)
             self._beets.remove(f"path:{path}", delete=True)
         # Remove from MPD queue
         pos = self._mpd.current_position()

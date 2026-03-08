@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import cyclopts
+from cyclopts import Group, Parameter
 
 from musictl.commands import (
     clean_current,
@@ -11,9 +14,12 @@ from musictl.commands import (
     rename_playlist,
     search,
     update,
+    waybar,
 )
+from musictl.log import setup_logging
 
 app = cyclopts.App(name="musictl", help="Music control utility for MPD + beets")
+app.meta.group_parameters = Group("Global Options", sort_key=0)
 
 app.command(search.app)
 app.command(play.app)
@@ -25,10 +31,27 @@ app.command(cue_split.app, name="cue-split")
 app.command(generate_playlists.app, name="generate-playlists")
 app.command(rename_playlist.app, name="rename-playlist")
 app.command(rename_folder.app, name="rename-folder")
+app.command(waybar.app)
+
+
+@app.meta.default
+def launcher(
+    *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
+    verbose: Annotated[int, Parameter(name=["-v", "--verbose"], show_default=False)] = 0,
+) -> None:
+    """Global options.
+
+    Parameters
+    ----------
+    verbose: int
+        Increase output verbosity (-v info, -vv debug, -vvv trace).
+    """
+    setup_logging(verbose)
+    app(tokens)
 
 
 def main():
-    app()
+    app.meta()
 
 
 if __name__ == "__main__":

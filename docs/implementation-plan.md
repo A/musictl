@@ -40,8 +40,7 @@ musictl/
 ├── commands/
 │   ├── __init__.py
 │   ├── search.py
-│   ├── play.py
-│   ├── random.py
+│   ├── play.py           # play + random (merged)
 │   ├── update.py
 │   ├── delete_current.py
 │   ├── clean_current.py
@@ -49,9 +48,11 @@ musictl/
 │   ├── cue_split.py
 │   ├── generate_playlists.py
 │   ├── rename_playlist.py
-│   └── rename_folder.py
+│   ├── rename_folder.py
+│   └── waybar.py
 ├── protocols.py         # Protocol interfaces for adapters
-└── config.py            # Settings (music dir, mpd host/port, etc.)
+├── config.py            # Settings (music dir, mpd host/port, etc.)
+└── log.py               # Logging setup (-v/-vv/-vvv)
 pyproject.toml
 Justfile
 .pre-commit-config.yaml
@@ -124,9 +125,10 @@ class DialogBackend(Protocol):
   - `connect()`, `current_song()`, `add(uri)`, `play()`, `clear()`, `delete(pos)`, `load_playlist(name)`, `list_playlists()`, `search(query)`, `update()`, `current_position()`, `queue_count()`
   - Auto-reconnect on connection loss
 - [x] Implement `BeetsAdapter`:
-  - Query/modify via `beets.library.Library` (open `~/.config/beets/library.db`)
+  - Query via `beets.library.Library` (open `~/.config/beets/library.db`)
   - `query(q)` → list of item dicts (path, artist, title, folder, playlists, id)
-  - `get_field(q, field)`, `modify(q, **fields)`, `all_folders()`, `all_playlists()`
+  - `get_field(q, field)`, `all_folders()`, `all_playlists()`
+  - `modify(q, **fields)` via `beet modify -y -m` (subprocess — handles flexible attributes + moves files)
   - `move(q)`, `remove(q, delete)`, `import_tracks(*args)`, `random(n, q)` via subprocess (`beet move`, `beet remove`, `beet import`, `beet random`)
 - [x] Implement `FfmpegAdapter` wrapping `ffcuesplitter`:
   - `split_cue(audio_file, cue_file, output_dir)` → list of output file paths
@@ -146,11 +148,15 @@ class DialogBackend(Protocol):
   - `relative_path(absolute_path)` → convert absolute path to music_dir-relative
 - [x] `PlaylistService(mpd: MpdBackend, beets: BeetsBackend, settings: Settings)`:
   - `load(name: str)` → `mpd.clear()` + `mpd.load_playlist(name)`
-  - `generate_all()` → generates all playlist types:
+  - `_build_playlists()` → shared logic that builds full set of playlist name → paths
+  - `generate_all()` → overwrites all .m3u files (lowercase_snake_case names):
     - inbox.m3u — tracks without `folder`
-    - playlist_*.m3u — by `playlists` field (each comma-separated value)
     - {folder}.m3u — by `folder` field
+    - playlist_{name}.m3u — by `playlists` field (each comma-separated value)
     - no_playlist.m3u — tracks with folder but no playlists
+    - collection.m3u — all non-inbox tracks
+    - all.m3u — all tracks
+  - `regenerate()` → diff-based: only writes changed files, removes stale ones
   - `rename(old_name, new_name)` → update `playlists` field on all matching tracks, sync comments, regenerate
 - [x] `LibraryService(beets: BeetsBackend, settings: Settings)`:
   - `import_tracks(*args)` → delegate to `beet import`
@@ -165,8 +171,8 @@ class DialogBackend(Protocol):
 - [x] Wire commands in `__main__.py` via cyclopts
 
 ### Step 5: Commands — update, delete-current, clean-current
-- [x] `musictl update` — get current track from MPD, lookup in beets, show yad form (folder CBE + playlist checkboxes), apply modifications, `beet move`, sync comments, regenerate playlists, remove from MPD queue
-- [x] `musictl delete-current` — yad confirm, `beet remove -d`, remove from MPD queue, mpd update
+- [x] `musictl update` — get current track from MPD, lookup in beets, show yad form (folder CBE + playlist checkboxes), apply modifications via `beet modify -m` (modify+move in one step), sync comments, regenerate playlists, remove from MPD queue
+- [x] `musictl delete-current` — yad confirm, `beet remove -d`, remove from MPD queue, regenerate playlists
 - [x] `musictl clean-current` — simply remove current track position from MPD queue (designed to be chained: `musictl update && musictl clean-current`)
 
 ### Step 6: Commands — import, cue-split, generate-playlists
@@ -174,9 +180,10 @@ class DialogBackend(Protocol):
 - [x] `musictl cue-split <file> -c <cue>` — uses `CueSplitService` → `FfmpegAdapter` to split audio
 - [x] `musictl generate-playlists` — call `PlaylistService.generate_all()`, write .m3u files to `~/Music/playlists/`
 
-### Step 7: Commands — rename-playlist, rename-folder
-- [ ] `musictl rename-playlist <old> <new>` — update playlists field across all matching tracks, sync comments, regenerate playlists
-- [ ] `musictl rename-folder <old> <new>` — update folder+genre fields, `beet move`, regenerate playlists
+### Step 7: Commands — rename-playlist, rename-folder, waybar
+- [x] `musictl rename-playlist <old> <new>` — update playlists field across all matching tracks, sync comments, regenerate playlists
+- [x] `musictl rename-folder <old> <new>` — update folder+genre fields, `beet modify -m`, regenerate playlists
+- [x] `musictl waybar` — output current track folder/playlists as JSON for waybar custom module
 
 ### Step 8: Shell Completions & README
 - [ ] Configure cyclopts shell completion generation

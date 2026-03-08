@@ -1,3 +1,4 @@
+import logging
 import random as random_mod
 import sys
 
@@ -7,6 +8,8 @@ from musictl.adapters.beets import BeetsAdapter
 from musictl.adapters.mpd import MpdAdapter
 from musictl.config import settings
 from musictl.services.playlists import PlaylistService
+
+logger = logging.getLogger(__name__)
 
 app = cyclopts.App(name="play", help="Play tracks or playlists")
 
@@ -29,6 +32,7 @@ def play(
     mpd = MpdAdapter()
 
     if random:
+        logger.info("Random mode: count=%d, playlist=%s", count, playlist or "(all)")
         if playlist is not None:
             tracks = mpd.list_playlist_tracks(playlist)
         else:
@@ -38,6 +42,7 @@ def play(
             print("No tracks found.", file=sys.stderr)
             sys.exit(1)
         selected = random_mod.sample(tracks, min(count, len(tracks)))
+        logger.info("Selected %d random tracks from %d", len(selected), len(tracks))
         mpd.clear()
         for path in selected:
             mpd.add(path)
@@ -45,6 +50,7 @@ def play(
         return
 
     if playlist is not None:
+        logger.info("Loading playlist: %s", playlist)
         beets = BeetsAdapter()
         service = PlaylistService(mpd, beets, settings)
         service.load(playlist)
@@ -56,6 +62,7 @@ def play(
         sys.exit(1)
 
     paths = [line.strip() for line in sys.stdin if line.strip()]
+    logger.info("Playing %d tracks from stdin", len(paths))
     if not paths:
         print("No tracks provided.", file=sys.stderr)
         sys.exit(1)

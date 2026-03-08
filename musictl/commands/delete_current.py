@@ -20,20 +20,9 @@ def delete_current() -> None:
     dialog = YadAdapter()
     track_service = TrackService(mpd, beets, settings)
 
-    track = track_service.current_track()
-    if track is None:
-        print("Nothing playing.", file=sys.stderr)
-        sys.exit(1)
-
-    folder = track.get("folder", "")
-    playlists_raw = track.get("playlists", "")
-    playlist_names = [p.strip() for p in playlists_raw.split(",") if p.strip()]
-
     if not track_service.delete_current(dialog):
-        print("Cancelled.", file=sys.stderr)
+        print("Nothing playing or cancelled.", file=sys.stderr)
         sys.exit(1)
 
-    # Regenerate affected playlists
-    affected_folders = [folder] if folder else []
     playlist_service = PlaylistService(mpd, beets, settings)
-    playlist_service.regenerate(affected_folders, playlist_names)
+    playlist_service.regenerate()

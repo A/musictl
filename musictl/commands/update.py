@@ -84,10 +84,7 @@ def update() -> None:
         comments=f"playlists:{new_playlists}",
     )
 
-    # Regenerate only affected playlists
-    affected_folders = {f for f in [current_folder, new_folder] if f}
-    affected_playlists = current_playlists | set(selected_playlists)
     playlist_service = PlaylistService(mpd, beets, settings)
-    playlist_service.regenerate(sorted(affected_folders), sorted(affected_playlists))
+    playlist_service.regenerate()
 
     track_service.clean_current()
