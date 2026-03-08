@@ -93,7 +93,7 @@ class PlaylistService:
             new_playlists = ",".join(updated)
             query = f"path:{track['path']}"
             self._beets.modify(query, playlists=new_playlists, comments=f"playlists:{new_playlists}")
-        self.generate_all()
+        self.regenerate()
 
     def _relative_path(self, absolute_path: str) -> str:
         try:

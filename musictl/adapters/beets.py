@@ -25,7 +25,6 @@ class BeetsAdapter:
                 "album": str(item.album),
                 "folder": str(getattr(item, "folder", "") or ""),
                 "playlists": str(getattr(item, "playlists", "") or ""),
-                # "genre": str(item.genre),
             }
             for item in items
         ]
@@ -81,11 +80,3 @@ class BeetsAdapter:
                     playlists.add(name)
         logger.debug("Found %d playlists", len(playlists))
         return sorted(playlists)
-
-    def random(self, count: int, query: str = "") -> list[str]:
-        logger.debug("Random %d tracks, query=%s", count, query or "(all)")
-        cmd = ["beet", "random", "-n", str(count)]
-        if query:
-            cmd.append(query)
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return [line for line in result.stdout.strip().splitlines() if line]

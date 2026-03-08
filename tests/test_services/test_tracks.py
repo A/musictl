@@ -20,6 +20,9 @@ class FakeMpd:
     def search(self, query: str) -> list[dict[str, str]]:
         return []
 
+    def list_playlist_tracks(self, name: str) -> list[str]:
+        return []
+
     def queue_count(self) -> int:
         return 0
 
@@ -59,9 +62,6 @@ class FakeBeets:
     def all_playlists(self) -> list[str]:
         return []
 
-    def random(self, count: int, query: str = "") -> list[str]:
-        return []
-
     def remove(self, query: str, delete: bool = False) -> None:
         self.removed.append((query, delete))
 
@@ -73,7 +73,7 @@ class FakeDialog:
     def confirm(self, title: str, text: str) -> bool:
         return self._confirm_result
 
-    def form(self, title: str, fields: list) -> list[str] | None:  # pyright: ignore[reportExplicitAny]
+    def form(self, title: str, fields: list[str], values: list[str] | None = None) -> list[str] | None:
         return None
 
     def notify(self, title: str, text: str) -> None: ...

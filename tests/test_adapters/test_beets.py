@@ -101,19 +101,6 @@ class TestSubprocessCommands:
             beets.import_tracks("/music/inbox", "--quiet")
             mock_run.assert_called_once_with(["beet", "import", "/music/inbox", "--quiet"], check=True)
 
-    def test_random(self, beets: BeetsAdapter):
-        with patch("musictl.adapters.beets.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(stdout="/music/a.mp3\n/music/b.mp3\n")
-            result = beets.random(2, "folder:rock")
-
-            mock_run.assert_called_once_with(
-                ["beet", "random", "-n", "2", "folder:rock"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            assert result == ["/music/a.mp3", "/music/b.mp3"]
-
 
 class TestCollections:
     def test_all_folders(self, beets: BeetsAdapter):

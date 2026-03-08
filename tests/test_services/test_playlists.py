@@ -27,6 +27,9 @@ class FakeMpd:
     def current_position(self) -> int | None:
         return None
 
+    def list_playlist_tracks(self, name: str) -> list[str]:
+        return []
+
     def queue_count(self) -> int:
         return 0
 
@@ -64,9 +67,6 @@ class FakeBeets:
         return []
 
     def all_playlists(self) -> list[str]:
-        return []
-
-    def random(self, count: int, query: str = "") -> list[str]:
         return []
 
 

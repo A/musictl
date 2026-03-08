@@ -35,9 +35,6 @@ class FakeBeets:
     def all_playlists(self) -> list[str]:
         return []
 
-    def random(self, count: int, query: str = "") -> list[str]:
-        return []
-
 
 class TestImportTracks:
     def test_delegates_to_beets(self) -> None:

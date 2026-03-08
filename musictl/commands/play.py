@@ -1,6 +1,7 @@
 import logging
 import random as random_mod
 import sys
+from pathlib import Path
 
 import cyclopts
 
@@ -37,7 +38,7 @@ def play(
             tracks = mpd.list_playlist_tracks(playlist)
         else:
             beets = BeetsAdapter()
-            tracks = [t.get("path", "") for t in beets.query("") if t.get("path")]
+            tracks = [str(Path(t["path"]).relative_to(settings.music_dir)) for t in beets.query("") if t.get("path")]
         if not tracks:
             print("No tracks found.", file=sys.stderr)
             sys.exit(1)
