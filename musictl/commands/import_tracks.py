@@ -1,7 +1,9 @@
 import sys
 from pathlib import Path
+from typing import Annotated
 
 import cyclopts
+from cyclopts import Parameter
 
 from musictl.adapters.beets import BeetsAdapter
 from musictl.adapters.mpd import MpdAdapter
@@ -28,8 +30,11 @@ def _collect_audio_files(paths: tuple[str, ...]) -> list[str]:
 
 
 @app.default
-def import_tracks(*args: str) -> None:
-    """Import tracks via beet import. All arguments are passed through."""
+def import_tracks(
+    *args: str,
+    beets_args: Annotated[list[str] | None, Parameter(name=["-B", "--beets-args"], allow_leading_hyphen=True)] = None,
+) -> None:
+    """Import tracks via beet import. Use -B to pass extra flags to beet import."""
     tagger = TaggerAdapter()
     dialog = YadAdapter()
 
@@ -56,9 +61,13 @@ def import_tracks(*args: str) -> None:
             for f in audio_files:
                 tagger.write_tags(f, tags)
 
+    import_args = list(args)
+    if beets_args:
+        import_args.extend(beets_args)
+
     beets = BeetsAdapter()
     service = LibraryService(beets, settings)
-    service.import_tracks(*args)
+    service.import_tracks(*import_args)
     mpd = MpdAdapter()
     mpd.connect()
     mpd.update()

@@ -45,8 +45,8 @@ uv tool install -e .
 | `musictl search <query>` | Search beets library, print relative paths |
 | `musictl play <playlist>` | Load and play a playlist |
 | `musictl play --random [--count N]` | Play N random tracks |
-| `musictl update` | Set folder/playlists on current track via YAD dialog |
-| `musictl delete-current` | Delete current track from library and disk |
+| `musictl update` | Set folder/playlists on current track via YAD dialog, remove from queue |
+| `musictl delete-current` | Delete current track from library and disk, remove from queue |
 | `musictl clean-current` | Remove current track from MPD queue |
 | `musictl import [args]` | Import tracks via `beet import` |
 | `musictl cue-split <file> --cue <cue>` | Split audio file by CUE sheet |
@@ -61,8 +61,8 @@ uv tool install -e .
 # Search and play results
 musictl search 'artist:Beatles' | musictl play
 
-# Chain: update current track, then remove from queue
-musictl update && musictl clean-current
+# Search and play from a specific folder
+musictl search 'folder:rock' | musictl play
 ```
 
 ### Waybar Integration

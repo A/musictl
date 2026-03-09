@@ -43,6 +43,8 @@ class TrackService:
         if not dialog.confirm("Delete track", f"Delete '{artist} - {title}'?"):
             logger.info("Delete cancelled by user")
             return False
+        # Remove from MPD queue before deleting, to avoid removing the next track
+        self.clean_current()
         # Remove from beets (and delete file)
         track_id = track.get("id", "")
         if track_id:

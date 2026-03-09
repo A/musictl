@@ -1,5 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+from ffcuesplitter.exceptions import FFProbeError
+from ffcuesplitter.ffmpeg import FFMpeg
+
 from musictl.adapters.ffmpeg import FfmpegAdapter
 
 
@@ -23,15 +27,28 @@ class TestParseCue:
             {"PERFORMER": "Artist", "ALBUM": "Album", "TITLE": "Track Two", "TRACK_NUM": "2"},
         ]
 
+    def test_raises_runtime_error_on_ffprobe_failure(self):
+        with patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls:
+            mock_splitter = MagicMock()
+            mock_cls.return_value = mock_splitter
+            mock_splitter.open_cuefile.side_effect = FFProbeError("Attached picture metadata block too short")
+
+            adapter = FfmpegAdapter()
+            with pytest.raises(RuntimeError, match="Failed to probe audio"):
+                adapter.parse_cue("audio.cue")
+
 
 class TestSplitCue:
-    def test_splits_and_returns_output_files(self, tmp_path):
+    def test_flac_uses_stream_copy_and_remux(self, tmp_path):
         out_dir = tmp_path / "output"
         out_dir.mkdir()
         (out_dir / "01 - Track One.flac").touch()
         (out_dir / "02 - Track Two.flac").touch()
 
-        with patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls:
+        with (
+            patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls,
+            patch("musictl.adapters.ffmpeg._remux") as mock_remux,
+        ):
             mock_splitter = MagicMock()
             mock_cls.return_value = mock_splitter
             mock_splitter.audiotracks = [{"TRACK_NUM": 1}, {"TRACK_NUM": 2}]
@@ -45,19 +62,69 @@ class TestSplitCue:
             adapter = FfmpegAdapter()
             result = adapter.split_cue("audio.flac", "audio.cue", str(out_dir))
 
-        mock_cls.assert_called_once_with(filename="audio.cue", outputdir=str(out_dir))
-        mock_splitter.open_cuefile.assert_called_once()
-        mock_splitter.commandargs.assert_called_once_with(mock_splitter.audiotracks)
+        mock_cls.assert_called_once_with(
+            filename="audio.cue",
+            outputdir=str(out_dir),
+            outputformat="flac",
+            ffmpeg_add_params="-c:a copy",
+        )
+        assert mock_remux.call_count == 2
         assert len(result) == 2
-        assert any("Track One" in p for p in result)
-        assert any("Track Two" in p for p in result)
+
+    def test_non_flac_patches_datacodecs(self, tmp_path):
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        (out_dir / "01 - Track One.flac").touch()
+
+        original_codec = FFMpeg.DATACODECS["flac"]
+
+        with patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls:
+            mock_splitter = MagicMock()
+            mock_cls.return_value = mock_splitter
+            mock_splitter.audiotracks = [{"TRACK_NUM": 1}]
+            mock_splitter.commandargs.return_value = {
+                "recipes": [
+                    ("ffmpeg -i ...", {"duration": 180, "titletrack": "01 - Track One.flac"}),
+                ]
+            }
+
+            adapter = FfmpegAdapter()
+            result = adapter.split_cue("audio.ape", "audio.cue", str(out_dir))
+
+        # DATACODECS restored after call
+        assert FFMpeg.DATACODECS["flac"] == original_codec
+        mock_cls.assert_called_once_with(
+            filename="audio.cue",
+            outputdir=str(out_dir),
+            outputformat="flac",
+        )
+        assert len(result) == 1
+
+    def test_non_flac_restores_datacodecs_on_error(self):
+        original_codec = FFMpeg.DATACODECS["flac"]
+
+        with (
+            patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls,
+            pytest.raises(RuntimeError),
+        ):
+            mock_splitter = MagicMock()
+            mock_cls.return_value = mock_splitter
+            mock_splitter.open_cuefile.side_effect = FFProbeError("fail")
+
+            adapter = FfmpegAdapter()
+            adapter.split_cue("audio.wav", "audio.cue", "/tmp/out")
+
+        assert FFMpeg.DATACODECS["flac"] == original_codec
 
     def test_split_with_artist_album_overrides(self, tmp_path):
         out_dir = tmp_path / "output"
         out_dir.mkdir()
         (out_dir / "01 - Track One.flac").touch()
 
-        with patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls:
+        with (
+            patch("musictl.adapters.ffmpeg.FFCueSplitter") as mock_cls,
+            patch("musictl.adapters.ffmpeg._remux"),
+        ):
             mock_splitter = MagicMock()
             mock_cls.return_value = mock_splitter
             mock_splitter.audiotracks = [

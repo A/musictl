@@ -16,7 +16,12 @@ def cue_split(audio_file: str, *, cue: str, output_dir: str = ".") -> None:
     dialog = YadAdapter()
     service = CueSplitService(ffmpeg)
 
-    tracks = service.parse(cue)
+    try:
+        tracks = service.parse(cue)
+    except RuntimeError as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)
+
     artist = tracks[0].get("PERFORMER", "Unknown") if tracks else "Unknown"
     album = tracks[0].get("ALBUM", "Unknown") if tracks else "Unknown"
 
@@ -32,6 +37,12 @@ def cue_split(audio_file: str, *, cue: str, output_dir: str = ".") -> None:
         sys.exit(1)
 
     artist, album = result[0], result[1]
-    paths = service.split(audio_file, cue, output_dir, artist=artist, album=album)
+
+    try:
+        paths = service.split(audio_file, cue, output_dir, artist=artist, album=album)
+    except RuntimeError as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)
+
     for path in paths:
         print(path)

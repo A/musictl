@@ -71,6 +71,9 @@ def update() -> None:
         sys.exit(1)
     query = f"id:{track_id}"
 
+    # Remove from MPD queue before modify+move, to avoid removing the next track
+    track_service.clean_current()
+
     beets.modify(
         query,
         folder=new_folder,
