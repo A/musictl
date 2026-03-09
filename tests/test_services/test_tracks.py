@@ -73,7 +73,13 @@ class FakeDialog:
     def confirm(self, title: str, text: str) -> bool:
         return self._confirm_result
 
-    def form(self, title: str, fields: list[str], values: list[str] | None = None) -> list[str] | None:
+    def form(
+        self,
+        title: str,
+        fields: list[str],
+        values: list[str] | None = None,
+        text: str | None = None,
+    ) -> list[str] | None:
         return None
 
     def notify(self, title: str, text: str) -> None: ...

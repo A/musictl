@@ -14,9 +14,17 @@ class YadAdapter:
         logger.debug("Confirm result: %s", "accepted" if result.returncode == 0 else "cancelled")
         return result.returncode == 0
 
-    def form(self, title: str, fields: list[str], values: list[str] | None = None) -> list[str] | None:
+    def form(
+        self,
+        title: str,
+        fields: list[str],
+        values: list[str] | None = None,
+        text: str | None = None,
+    ) -> list[str] | None:
         logger.debug("Form dialog: %s, fields=%s", title, fields)
         cmd = ["yad", "--form", f"--title={title}", "--separator=|"]
+        if text is not None:
+            cmd.append(f"--text={text}")
         for field in fields:
             cmd.append(f"--field={field}")
         if values:

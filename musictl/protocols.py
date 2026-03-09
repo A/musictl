@@ -29,10 +29,30 @@ class BeetsBackend(Protocol):
 
 
 class FfmpegBackend(Protocol):
-    def split_cue(self, audio_file: str, cue_file: str, output_dir: str) -> list[str]: ...
+    def parse_cue(self, cue_file: str) -> list[dict[str, str]]: ...
+    def split_cue(
+        self,
+        audio_file: str,
+        cue_file: str,
+        output_dir: str,
+        *,
+        artist: str | None = None,
+        album: str | None = None,
+    ) -> list[str]: ...
+
+
+class TaggerBackend(Protocol):
+    def read_tags(self, path: str) -> dict[str, str]: ...
+    def write_tags(self, path: str, tags: dict[str, str]) -> None: ...
 
 
 class DialogBackend(Protocol):
     def confirm(self, title: str, text: str) -> bool: ...
-    def form(self, title: str, fields: list[str], values: list[str] | None = None) -> list[str] | None: ...
+    def form(
+        self,
+        title: str,
+        fields: list[str],
+        values: list[str] | None = None,
+        text: str | None = None,
+    ) -> list[str] | None: ...
     def notify(self, title: str, text: str) -> None: ...

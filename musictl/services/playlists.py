@@ -13,6 +13,7 @@ class PlaylistService:
         self._beets = beets
         self._music_dir = settings.music_dir
         self._playlists_dir = settings.playlists_dir
+        self._audio_extensions = settings.audio_extensions
 
     def load(self, name: str) -> None:
         logger.info("Loading playlist: %s", name)
@@ -58,6 +59,8 @@ class PlaylistService:
 
         for track in tracks:
             rel_path = self._relative_path(track.get("path", ""))
+            if Path(rel_path).suffix.lower() not in self._audio_extensions:
+                continue
             folder = track.get("folder", "")
             playlists_raw = track.get("playlists", "")
             all_paths.append(rel_path)
