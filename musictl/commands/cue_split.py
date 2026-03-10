@@ -10,14 +10,14 @@ app = cyclopts.App(name="cue-split", help="Split audio file by CUE sheet")
 
 
 @app.default
-def cue_split(audio_file: str, *, cue: str, output_dir: str = ".") -> None:
-    """Split an audio file into tracks using a CUE sheet."""
+def cue_split(cue_file: str, *, output_dir: str = ".") -> None:
+    """Split audio files into tracks using a CUE sheet."""
     ffmpeg = FfmpegAdapter()
     dialog = YadAdapter()
     service = CueSplitService(ffmpeg)
 
     try:
-        tracks = service.parse(cue)
+        tracks = service.parse(cue_file)
     except RuntimeError as e:
         print(e, file=sys.stderr)
         sys.exit(1)
@@ -39,7 +39,7 @@ def cue_split(audio_file: str, *, cue: str, output_dir: str = ".") -> None:
     artist, album = result[0], result[1]
 
     try:
-        paths = service.split(audio_file, cue, output_dir, artist=artist, album=album)
+        paths = service.split(cue_file, output_dir, artist=artist, album=album)
     except RuntimeError as e:
         print(e, file=sys.stderr)
         sys.exit(1)

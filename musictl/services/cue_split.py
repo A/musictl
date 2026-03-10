@@ -10,11 +10,10 @@ class CueSplitService:
 
     def split(
         self,
-        audio_file: str,
         cue_file: str,
         output_dir: str,
         *,
         artist: str | None = None,
         album: str | None = None,
     ) -> list[str]:
-        return self._ffmpeg.split_cue(audio_file, cue_file, output_dir, artist=artist, album=album)
+        return self._ffmpeg.split_cue(cue_file, output_dir, artist=artist, album=album)

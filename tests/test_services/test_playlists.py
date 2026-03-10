@@ -66,8 +66,8 @@ class FakeBeets:
     def all_folders(self) -> list[str]:
         return []
 
-    def all_playlists(self) -> list[str]:
-        return []
+    def all_playlists(self) -> dict[str, int]:
+        return {}
 
 
 class TestLoad:

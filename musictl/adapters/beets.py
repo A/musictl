@@ -79,14 +79,14 @@ class BeetsAdapter:
         logger.debug("Found %d folders", len(folders))
         return sorted(folders)
 
-    def all_playlists(self) -> list[str]:
+    def all_playlists(self) -> dict[str, int]:
         items = self._lib.items("")
-        playlists: set[str] = set()
+        counts: dict[str, int] = {}
         for item in items:
             raw = str(getattr(item, "playlists", "") or "")
             for name in raw.split(","):
                 name = name.strip()
-                if name:
-                    playlists.add(name)
-        logger.debug("Found %d playlists", len(playlists))
-        return sorted(playlists)
+                if name and name not in ("TRUE", "FALSE"):
+                    counts[name] = counts.get(name, 0) + 1
+        logger.debug("Found %d playlists", len(counts))
+        return counts

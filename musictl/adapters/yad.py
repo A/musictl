@@ -20,9 +20,12 @@ class YadAdapter:
         fields: list[str],
         values: list[str] | None = None,
         text: str | None = None,
+        columns: int = 1,
     ) -> list[str] | None:
         logger.debug("Form dialog: %s, fields=%s", title, fields)
         cmd = ["yad", "--form", f"--title={title}", "--separator=|"]
+        if columns > 1:
+            cmd.append(f"--columns={columns}")
         if text is not None:
             cmd.append(f"--text={text}")
         for field in fields:

@@ -59,8 +59,8 @@ class FakeBeets:
     def all_folders(self) -> list[str]:
         return []
 
-    def all_playlists(self) -> list[str]:
-        return []
+    def all_playlists(self) -> dict[str, int]:
+        return {}
 
     def remove(self, query: str, delete: bool = False) -> None:
         self.removed.append((query, delete))
@@ -79,6 +79,7 @@ class FakeDialog:
         fields: list[str],
         values: list[str] | None = None,
         text: str | None = None,
+        columns: int = 1,
     ) -> list[str] | None:
         return None
 

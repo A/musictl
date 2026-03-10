@@ -36,7 +36,8 @@ def update() -> None:
     current_playlists = {p.strip() for p in track.get("playlists", "").split(",") if p.strip()}
 
     all_folders = beets.all_folders()
-    all_playlists = beets.all_playlists()
+    playlist_counts = beets.all_playlists()
+    sorted_playlists = sorted(playlist_counts, key=lambda n: playlist_counts[n], reverse=True)
 
     # Build YAD form: fields define types, values set initial state
     fields: list[str] = []
@@ -47,21 +48,33 @@ def update() -> None:
     fields.append("Folder:CBE")
     values.append(f"{current_folder}!{folder_options}")
 
-    # Playlist checkboxes
-    for name in sorted(all_playlists):
-        fields.append(f"{name}:CHK")
+    # Playlist checkboxes sorted by track count
+    for name in sorted_playlists:
+        fields.append(f"{name} ({playlist_counts[name]}):CHK")
         values.append("TRUE" if name in current_playlists else "FALSE")
 
-    result = dialog.form("Update Track", fields, values)
+    # Text entry for new playlist names
+    fields.append("New playlists")
+    values.append("")
+
+    result = dialog.form("Update Track", fields, values, columns=2)
     if result is None:
         sys.exit(1)
 
     # Parse form result: first value is folder, rest are checkbox booleans
     new_folder = result[0].strip()
     selected_playlists: list[str] = []
-    for i, name in enumerate(sorted(all_playlists)):
+    for i, name in enumerate(sorted_playlists):
         if result[i + 1].upper() == "TRUE":
             selected_playlists.append(name)
+
+    new_playlists_idx = 1 + len(playlist_counts)
+    raw_new = result[new_playlists_idx].strip() if len(result) > new_playlists_idx else ""
+    if raw_new:
+        for name in raw_new.split(","):
+            name = name.strip()
+            if name and name not in selected_playlists:
+                selected_playlists.append(name)
 
     new_playlists = ",".join(selected_playlists)
     logger.info("Updating: folder=%s, playlists=%s", new_folder, new_playlists)
