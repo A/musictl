@@ -37,6 +37,8 @@ def waybar() -> None:
         text = " ".join(parts)
     artist = track.get("artist", "")
     title = track.get("title", "")
+    if artist and title:
+        text += f"  {artist} - {title}"
     tooltip = f"{artist} - {title}" if artist and title else ""
 
     print(json.dumps({"text": text, "tooltip": tooltip}))
