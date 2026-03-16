@@ -84,3 +84,7 @@ class MpdAdapter:
         self._ensure_connected()
         status = self._client.status()
         return int(status.get("playlistlength", 0))
+
+    def idle(self, *subsystems: str) -> list[str]:
+        self._ensure_connected()
+        return self._client.idle(*subsystems)

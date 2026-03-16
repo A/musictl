@@ -66,8 +66,8 @@ class FakeBeets:
     def all_folders(self) -> list[str]:
         return []
 
-    def all_playlists(self) -> list[str]:
-        return []
+    def all_playlists(self) -> dict[str, int]:
+        return {}
 
 
 class TestLoad:
@@ -141,6 +141,28 @@ class TestGenerateAll:
             # all tracks
             all_content = (playlists_dir / "all.m3u").read_text()
             assert "rock/a.mp3" in all_content
+
+    def test_excludes_non_audio_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            music_dir = Path(tmpdir) / "music"
+            music_dir.mkdir()
+            playlists_dir = Path(tmpdir) / "playlists"
+            settings = Settings(music_dir=music_dir, playlists_dir=playlists_dir)
+            mpd = FakeMpd()
+            beets = FakeBeets()
+            beets._items = [
+                {"path": str(music_dir / "good.mp3"), "folder": "rock", "playlists": ""},
+                {"path": str(music_dir / "backup.mp3.fbak"), "folder": "rock", "playlists": ""},
+                {"path": str(music_dir / "notes.txt"), "folder": "rock", "playlists": ""},
+            ]
+            service = PlaylistService(mpd, beets, settings)
+
+            service.generate_all()
+
+            all_content = (playlists_dir / "all.m3u").read_text()
+            assert "good.mp3" in all_content
+            assert "fbak" not in all_content
+            assert "notes.txt" not in all_content
 
     def test_handles_multiple_comma_separated_playlists(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

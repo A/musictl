@@ -124,4 +124,4 @@ class TestCollections:
 
         result = beets.all_playlists()
 
-        assert result == ["chill", "focus", "workout"]
+        assert result == {"chill": 1, "focus": 1, "workout": 2}

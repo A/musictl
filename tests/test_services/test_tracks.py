@@ -59,8 +59,8 @@ class FakeBeets:
     def all_folders(self) -> list[str]:
         return []
 
-    def all_playlists(self) -> list[str]:
-        return []
+    def all_playlists(self) -> dict[str, int]:
+        return {}
 
     def remove(self, query: str, delete: bool = False) -> None:
         self.removed.append((query, delete))
@@ -73,7 +73,14 @@ class FakeDialog:
     def confirm(self, title: str, text: str) -> bool:
         return self._confirm_result
 
-    def form(self, title: str, fields: list[str], values: list[str] | None = None) -> list[str] | None:
+    def form(
+        self,
+        title: str,
+        fields: list[str],
+        values: list[str] | None = None,
+        text: str | None = None,
+        columns: int = 1,
+    ) -> list[str] | None:
         return None
 
     def notify(self, title: str, text: str) -> None: ...
@@ -140,7 +147,7 @@ class TestDeleteCurrent:
 
         assert service.delete_current(dialog) is True
         assert beets.removed == [("id:42", True)]
-        assert mpd.deleted == []
+        assert mpd.deleted == [3]
         assert mpd.updated is True
 
     def test_aborts_when_not_confirmed(self) -> None:
