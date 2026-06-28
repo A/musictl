@@ -20,17 +20,31 @@ class BeetsAdapter:
         self._lib = Library(str(settings.beets_db_path))
         logger.debug("Opened beets DB: %s", settings.beets_db_path)
 
-    def _abs_path(self, path: str) -> str:
-        """Resolve a path to a normalized absolute path.
+    def _music_rel(self, path: str) -> str:
+        """Reduce a path to its canonical music_dir-relative form.
 
-        beets may store paths relative to music_dir (depending on the
-        `directory`/import config on a given machine), while callers pass
-        absolute paths from MPD. Normalizing both sides through this helper
-        makes matching robust regardless of which form either side uses, or
-        of `~`, redundant separators, or `..` segments.
+        A DB that stores music_dir-relative paths is reported differently by
+        different beets versions: older ones (2.7) pass them through relative,
+        newer ones (2.12) absolutize them — sometimes against $HOME instead of
+        music_dir, e.g. `/home/u/Folder/x` rather than `/home/u/Music/Folder/x`.
+        Callers also pass absolute MPD paths (music_dir + file). Reducing every
+        form to the music_dir-relative tail makes matching and the returned
+        `path` field independent of beets version and of `~`, redundant
+        separators, or `..` segments.
         """
-        p = Path(path).expanduser()
-        abs_path = p if p.is_absolute() else settings.music_dir / p
+        norm = os.path.normpath(os.path.expanduser(path))
+        if not os.path.isabs(norm):
+            return norm
+        for base in (settings.music_dir, Path.home()):
+            b = os.path.normpath(str(base))
+            if norm == b or norm.startswith(b + os.sep):
+                return os.path.relpath(norm, b)
+        return norm
+
+    def _abs_path(self, path: str) -> str:
+        """Canonical absolute path under music_dir, regardless of input form."""
+        rel = Path(self._music_rel(path))
+        abs_path = rel if rel.is_absolute() else settings.music_dir / rel
         return os.path.normpath(str(abs_path))
 
     def query(self, query: str) -> list[dict[str, str]]:
@@ -38,10 +52,10 @@ class BeetsAdapter:
         if query.startswith("path:"):
             # Exact path match in Python to avoid beets query parser issues
             # with special characters (commas, colons, etc.) in file paths.
-            # Both the stored path and the target are normalized to absolute
-            # so a relative DB path matches an absolute MPD path (and vice versa).
-            target = self._abs_path(query[5:])
-            items = [item for item in self._lib.items("") if self._abs_path(_item_path(item)) == target]
+            # Compare on the music_dir-relative form so a relative DB path,
+            # an absolute MPD path, and a beets-absolutized path all match.
+            target = self._music_rel(query[5:])
+            items = [item for item in self._lib.items("") if self._music_rel(_item_path(item)) == target]
         else:
             items = self._lib.items(query)
         results = [

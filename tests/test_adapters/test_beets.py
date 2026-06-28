@@ -63,34 +63,55 @@ class TestQuery:
 
 
 class TestPathQuery:
-    """path: queries must match regardless of relative/absolute path form.
+    """path: queries must match regardless of how beets reports item paths.
 
-    Regression: beets stores paths relative to music_dir on some machines,
-    while MPD reports absolute paths. Naive string equality misses these,
-    leaving the current track un-enriched (no folder/playlists -> "Inbox").
+    A DB storing music_dir-relative paths is reported differently per beets
+    version: 2.7 passes them through relative, 2.12 absolutizes them against
+    $HOME (dropping the music_dir component). MPD always passes an absolute
+    music_dir path. All forms must match, or the current track is left
+    un-enriched (no folder/playlists -> "Inbox"). music_dir is under $HOME
+    here to exercise the 2.12 case realistically.
     """
 
-    @pytest.fixture(autouse=True)
-    def _fixed_music_dir(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr(beets_mod.settings, "music_dir", Path("/music"))
+    QUERY = "path:/home/u/Music/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac"
 
-    def test_relative_db_path_matches_absolute_query(self, beets: BeetsAdapter):
+    @pytest.fixture(autouse=True)
+    def _fixed_dirs(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(beets_mod.settings, "music_dir", Path("/home/u/Music"))
+        monkeypatch.setattr(beets_mod.Path, "home", staticmethod(lambda: Path("/home/u")))
+
+    def test_relative_db_path(self, beets: BeetsAdapter):
+        # beets 2.7: path stored/reported relative to music_dir
         beets._lib.items.return_value = [
             _make_item(path=b"Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac", folder="Ambient"),
         ]
 
-        result = beets.query("path:/music/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac")
+        result = beets.query(self.QUERY)
 
         assert len(result) == 1
         assert result[0]["folder"] == "Ambient"
-        assert result[0]["path"] == "/music/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac"
+        assert result[0]["path"] == "/home/u/Music/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac"
 
-    def test_absolute_db_path_matches_absolute_query(self, beets: BeetsAdapter):
+    def test_home_absolutized_db_path(self, beets: BeetsAdapter):
+        # beets 2.12: relative path absolutized against $HOME, not music_dir
         beets._lib.items.return_value = [
-            _make_item(path=b"/music/Ambient/Wrong Floor.flac", folder="Ambient"),
+            _make_item(path=b"/home/u/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac", folder="Ambient"),
         ]
 
-        result = beets.query("path:/music/Ambient/Wrong Floor.flac")
+        result = beets.query(self.QUERY)
+
+        assert len(result) == 1
+        assert result[0]["folder"] == "Ambient"
+        # returned path is corrected back under music_dir
+        assert result[0]["path"] == "/home/u/Music/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac"
+
+    def test_music_dir_absolutized_db_path(self, beets: BeetsAdapter):
+        # plain absolute path already under music_dir
+        beets._lib.items.return_value = [
+            _make_item(path=b"/home/u/Music/Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac", folder="Ambient"),
+        ]
+
+        result = beets.query(self.QUERY)
 
         assert len(result) == 1
         assert result[0]["folder"] == "Ambient"
@@ -98,7 +119,7 @@ class TestPathQuery:
     def test_no_match_returns_empty(self, beets: BeetsAdapter):
         beets._lib.items.return_value = [_make_item(path=b"Ambient/Other.flac")]
 
-        assert beets.query("path:/music/Ambient/Missing.flac") == []
+        assert beets.query(self.QUERY) == []
 
 
 class TestGetField:
