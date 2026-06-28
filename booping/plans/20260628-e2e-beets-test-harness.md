@@ -1,13 +1,13 @@
 ---
 title: E2E Beets Test Harness + De-mocking
 type: refactoring
-status: in-progress
+status: done
 sp: 21
 split_from: null
 created: 2026-06-28
 planned: 20260628 16:29
 started: 20260628 17:00
-completed: null
+completed: 20260629 10:00
 retro: null
 goal: null
 summary: "Dockerized real-beets test harness; replace mocked beets adapter tests with
@@ -150,7 +150,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 ---
 
-### M5: End-to-end enrichment regression — 2 SP | pending
+### M5: End-to-end enrichment regression — 2 SP | done
 
 **Goal**: a service-level test reproduces the original Inbox bug — `TrackService.current_track` with a **fake MPD** (returns a music_dir-relative `file`) + a **real `BeetsAdapter`** (seeded) enriches the track with folder/playlists.
 
@@ -158,8 +158,8 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 | Task | Description | Files | SP | Status |
 |------|-------------|-------|----|--------|
-| 5.1 | `test_current_track_enriches_relative_path`: reuse the existing `FakeMpd` in this file (returns `{"file": "<rel>"}`), wire it with a real seeded `BeetsAdapter`, assert `current_track()` returns `folder`/`playlists`. Note in-file that this is the Inbox-bug regression and that waybar Pango escaping is covered by `test_waybar.py`. | `tests/test_services/test_tracks.py` | 1 | pending |
-| 5.2 | Add a `BEETSDIR`/real-lib guard helper shared by service e2e and adapter e2e to assert isolation (no real-library access). | `tests/support/seeding.py` or `tests/conftest.py` | 1 | pending |
+| 5.1 | `test_current_track_enriches_relative_path`: reuse the existing `FakeMpd` in this file (returns `{"file": "<rel>"}`), wire it with a real seeded `BeetsAdapter`, assert `current_track()` returns `folder`/`playlists`. Note in-file that this is the Inbox-bug regression and that waybar Pango escaping is covered by `test_waybar.py`. | `tests/test_services/test_tracks.py` | 1 | done |
+| 5.2 | Add a `BEETSDIR`/real-lib guard helper shared by service e2e and adapter e2e to assert isolation (no real-library access). | `tests/support/seeding.py` or `tests/conftest.py` | 1 | done |
 
 #### Task 5.1 DoD
 - [ ] Test fails if `query` path-matching regresses to naive string compare (asserted via the relative-vs-absolute mismatch the bug had).
@@ -168,7 +168,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 ---
 
-### M6: Version pinning + CI wiring — 2 SP | pending
+### M6: Version pinning + CI wiring — 2 SP | done
 
 **Goal**: beets is pinned to the deployed version with a documented rationale, and the Docker e2e run is wired into CI + CLAUDE.md.
 
@@ -176,8 +176,8 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 | Task | Description | Files | SP | Status |
 |------|-------------|-------|----|--------|
-| 6.1 | Pin `beets` in `pyproject.toml` to the deployed version (`>=2.12,<3` with a comment on the path-reporting behavior); ensure compose `BEETS_VERSION` matches. | `pyproject.toml`, `docker-compose.yml` | 1 | pending |
-| 6.2 | CI job (GitHub Actions, matching existing workflows) running the compose e2e suite; update `CLAUDE.md` `## Testing` with `just test` (fast) vs `just test-e2e` (Docker e2e) and the isolation/seeding notes. | `.github/workflows/*`, `CLAUDE.md` | 1 | pending |
+| 6.1 | Pin `beets` in `pyproject.toml` to the deployed version (`>=2.12,<3` with a comment on the path-reporting behavior); ensure compose `BEETS_VERSION` matches. | `pyproject.toml`, `docker-compose.yml` | 1 | done |
+| 6.2 | CI job (GitHub Actions, matching existing workflows) running the compose e2e suite; update `CLAUDE.md` `## Testing` with `just test` (fast) vs `just test-e2e` (Docker e2e) and the isolation/seeding notes. | `.github/workflows/*`, `CLAUDE.md` | 1 | done |
 
 #### Task 6.1 DoD
 - [ ] `pyproject.toml` constrains beets with a comment explaining the version-sensitive `item.path` behavior.

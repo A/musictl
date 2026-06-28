@@ -75,6 +75,15 @@ Generated playlists (all lowercase_snake_case .m3u):
 
 ## Testing
 
-- All adapters tested via mocks in `tests/test_adapters/`
-- Services and commands: use mocked adapters (protocol fakes), not real backends
-- Pre-commit runs ruff, basedpyright, and pytest
+Two tiers, selected by the `e2e` marker:
+
+- `just test` — fast tier (`pytest -m "not e2e"`). Services and commands use protocol fakes; no real backends, daemon, or network.
+- `just test-e2e` — Docker e2e tier (`docker compose run --rm test`, marker `e2e`). Runs against a real, pinned beets (2.12.0) + real `beet` CLI inside `Dockerfile.test`. CI runs this on PRs.
+
+E2e seeding has two forms (`tests/support/seeding.py`): `seed_item(...)` inserts DB-only beets `Item` rows (fast, no files) for query/enrichment/collection logic; `make_track(...)` generates tiny tagged silent ffmpeg tracks for the import/move/delete file-op paths.
+
+Isolation invariant (safety-critical): every e2e test binds beets to a `tmp_path` library and points `BEETSDIR` **and** `HOME` at tmp dirs, so no test ever touches the real `~/Music` / `~/.config/beets`. The fixture deliberately sets beets `directory` != `music_dir` to reproduce the 2.12 path-absolutization that the Inbox-enrichment bug needed. `assert_isolated(beets_env, ...)` in `tests/conftest.py` is the shared guard, used by both adapter and service e2e tests.
+
+- All adapters tested in `tests/test_adapters/`; the beets adapter runs against a real seeded Library (no mocks).
+- Services and commands: use protocol fakes, not real backends (except the `e2e` enrichment regression, which pairs a fake MPD with a real seeded beets).
+- Pre-commit runs ruff, basedpyright, and pytest.

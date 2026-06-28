@@ -16,3 +16,10 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run basedpyright musictl
       - run: uv run pytest
+
+  e2e:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose run --rm test

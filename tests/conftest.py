@@ -13,6 +13,7 @@ reproduces the real mismatch and lines up with `_music_rel`'s two reduction
 bases (music_dir and `Path.home()`).
 """
 
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,21 @@ class BeetsEnv:
     directory: Path
     music_dir: Path
     db_path: Path
+
+
+def assert_isolated(beets_env: BeetsEnv, path: Path | None = None) -> None:
+    """Shared isolation guard for e2e tests (service + adapter).
+
+    The one safety-critical invariant: no test may read or write the real
+    `~/Music` / `~/.config/beets`. HOME and BEETSDIR are fixture-patched to tmp
+    dirs, so `~/Music` must resolve to the tmp music dir and BEETSDIR must point
+    at the tmp config. Optionally assert a concrete file path stays under the
+    tmp HOME.
+    """
+    assert Path("~/Music").expanduser().resolve() == beets_env.music_dir.resolve()
+    assert os.environ.get("BEETSDIR") == str(beets_env.beetsdir)
+    if path is not None:
+        assert str(path.resolve()).startswith(str(beets_env.home.resolve()))
 
 
 @pytest.fixture

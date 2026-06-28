@@ -13,7 +13,7 @@ from beets.library import Library
 
 from musictl.adapters.beets import BeetsAdapter, _item_path
 from musictl.config import Settings
-from tests.conftest import BeetsEnv
+from tests.conftest import BeetsEnv, assert_isolated
 from tests.support.seeding import make_track, seed_item
 
 
@@ -128,14 +128,6 @@ def _settings_from_env(beets_env: BeetsEnv) -> Settings:
     )
 
 
-def _assert_isolated(path: Path, beets_env: BeetsEnv) -> None:
-    """Isolation guard: every file op stays under the tmp HOME, never the real
-    `~/Music` / `~/.config/beets`. HOME is fixture-patched, so `~/Music` must
-    resolve to the tmp music dir."""
-    assert str(path.resolve()).startswith(str(beets_env.home.resolve()))
-    assert Path("~/Music").expanduser().resolve() == beets_env.music_dir.resolve()
-
-
 @pytest.mark.e2e
 class TestFileOps:
     """File-op commands run the real `beet` CLI against silent fixtures and are
@@ -159,7 +151,7 @@ class TestFileOps:
         self._import(beets_adapter, inbox, artist="Art", title="Original", album="Alb")
         old_path = self._real_path(beets_env, "artist:Art")
         assert old_path.exists()
-        _assert_isolated(old_path, beets_env)
+        assert_isolated(beets_env, old_path)
 
         # `-m` (modify) moves the file because the default path format includes
         # the changed field ($title).
@@ -170,7 +162,7 @@ class TestFileOps:
         assert rows[0]["title"] == "Renamed"
 
         new_path = self._real_path(beets_env, "artist:Art")
-        _assert_isolated(new_path, beets_env)
+        assert_isolated(beets_env, new_path)
         assert new_path != old_path
         assert new_path.exists()
         assert not old_path.exists()
@@ -187,7 +179,7 @@ class TestFileOps:
         beets_adapter.move("artist:Mover")
 
         relocated = self._real_path(beets_env, "artist:Mover")
-        _assert_isolated(relocated, beets_env)
+        assert_isolated(beets_env, relocated)
         assert relocated.parent != stray
         assert relocated.exists()
         assert not stray_path.exists()
@@ -197,7 +189,7 @@ class TestFileOps:
         self._import(beets_adapter, inbox, artist="Doomed", title="Bye", album="Alb")
         path = self._real_path(beets_env, "artist:Doomed")
         assert path.exists()
-        _assert_isolated(path, beets_env)
+        assert_isolated(beets_env, path)
 
         beets_adapter.remove("artist:Doomed", delete=True)
 

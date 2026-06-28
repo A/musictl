@@ -1,5 +1,10 @@
+import pytest
+
+from musictl.adapters.beets import BeetsAdapter, _item_path
 from musictl.config import Settings
 from musictl.services.tracks import TrackService
+from tests.conftest import BeetsEnv, assert_isolated
+from tests.support.seeding import seed_item
 
 
 class FakeMpd:
@@ -120,6 +125,41 @@ class TestCurrentTrack:
         assert result is not None
         assert result["artist"] == "Band"
         assert result["folder"] == "rock"
+
+
+@pytest.mark.e2e
+def test_current_track_enriches_relative_path(
+    beets_adapter: BeetsAdapter,
+    tmp_settings: Settings,
+    beets_env: BeetsEnv,
+) -> None:
+    """Inbox-bug regression at the service seam: a fake MPD reports a
+    music_dir-relative `file` while a real seeded beets library stores the path
+    in a version-dependent form (2.12 absolutizes against the library
+    `directory`, which the fixture sets != music_dir). `current_track` must
+    still enrich folder/playlists; the original bug's naive string compare left
+    them empty and waybar rendered every track as "Inbox". The matching waybar
+    Pango-escaping regression is covered by tests/test_commands/test_waybar.py.
+    """
+    assert_isolated(beets_env)
+    rel = "Ambient/Kavinsky & Lovefoxxx - Wrong Floor.flac"
+    item = seed_item(beets_adapter._lib, path=rel, folder="Ambient", playlists="drive")
+
+    # Discriminating check: the raw reported path does NOT string-equal the
+    # absolute MPD-constructed path, so a naive string compare in `query` would
+    # leave the track un-enriched. This is exactly the bug condition, so the
+    # test fails if path-matching regresses to a naive compare.
+    abs_mpd_path = str(tmp_settings.music_dir / rel)
+    assert _item_path(item) != abs_mpd_path
+
+    mpd = FakeMpd()
+    mpd._current_song = {"file": rel}
+    service = TrackService(mpd, beets_adapter, tmp_settings)
+
+    result = service.current_track()
+    assert result is not None
+    assert result["folder"] == "Ambient"
+    assert result["playlists"] == "drive"
 
 
 class TestSearch:
