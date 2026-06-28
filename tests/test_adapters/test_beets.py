@@ -141,8 +141,16 @@ class TestFileOps:
     def _real_path(self, beets_env: BeetsEnv, query: str) -> Path:
         """The actual on-disk file path beets stores (placed under the library
         `directory`), read raw via a fresh Library so it reflects subprocess
-        commits — distinct from `adapter.query`'s music_dir-normalized path."""
-        items = list(Library(str(beets_env.db_path)).items(query))
+        commits — distinct from `adapter.query`'s music_dir-normalized path.
+
+        beets 2.12 stores DB paths *relative* to the library `directory` and the
+        `Item.path` property absolutizes them against the Library's `directory`.
+        That `directory` MUST be passed explicitly: a `Library(db)` opened
+        without it falls back to beets' `~/Music` default (== our `music_dir`),
+        which would absolutize the relative path to the wrong base and point at a
+        file that isn't there. Bind it to the fixture's beets `directory` so the
+        reported path is the genuine on-disk location."""
+        items = list(Library(str(beets_env.db_path), str(beets_env.directory)).items(query))
         assert len(items) == 1
         return Path(_item_path(items[0]))
 
