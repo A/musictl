@@ -1,12 +1,12 @@
 ---
 title: E2E Beets Test Harness + De-mocking
 type: refactoring
-status: ready-for-dev
+status: in-progress
 sp: 21
 split_from: null
 created: 2026-06-28
 planned: 20260628 16:29
-started: null
+started: 20260628 17:00
 completed: null
 retro: null
 goal: null
