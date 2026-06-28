@@ -109,7 +109,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 ---
 
-### M3: Real-Library beets adapter tests (replace mocks) — 4 SP | pending
+### M3: Real-Library beets adapter tests (replace mocks) — 4 SP | done
 
 **Goal**: `test_beets.py` exercises `query`, path-matching, `get_field`, `all_folders`, `all_playlists` against a real Library — zero `MagicMock`/`patch`/`monkeypatch`.
 
@@ -117,8 +117,8 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 | Task | Description | Files | SP | Status |
 |------|-------------|-------|----|--------|
-| 3.1 | Rewrite `TestQuery`, `TestGetField`, `TestCollections` using `beets_adapter` + `seed_item`. | `tests/test_adapters/test_beets.py` | 2 | pending |
-| 3.2 | Rewrite `TestPathQuery` to seed real items in each path form the pinned beets version produces (relative + whatever 2.12 reports), then assert `query("path:<abs music_dir path>")` enriches. Drop the hard-coded per-version path strings. | `tests/test_adapters/test_beets.py` | 2 | pending |
+| 3.1 | Rewrite `TestQuery`, `TestGetField`, `TestCollections` using `beets_adapter` + `seed_item`. | `tests/test_adapters/test_beets.py` | 2 | done |
+| 3.2 | Rewrite `TestPathQuery` to seed real items in each path form the pinned beets version produces (relative + whatever 2.12 reports), then assert `query("path:<abs music_dir path>")` enriches. Drop the hard-coded per-version path strings. | `tests/test_adapters/test_beets.py` | 2 | done |
 
 #### Task 3.1 DoD
 - [ ] All assertions run against a real seeded Library.
@@ -133,7 +133,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 ---
 
-### M4: Real subprocess file-op tests — 3 SP | pending
+### M4: Real subprocess file-op tests — 3 SP | done
 
 **Goal**: `modify`, `move`, `import_tracks`, `remove` are tested by running the real `beet` CLI against silent fixtures in an isolated `BEETSDIR`, asserting real effects — not argv strings.
 
@@ -141,7 +141,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 | Task | Description | Files | SP | Status |
 |------|-------------|-------|----|--------|
-| 4.1 | Replace `TestSubprocessCommands` argv-assert mocks with real runs: `modify` changes a field + moves the file; `move` relocates per path template; `remove(delete=True)` removes row + unlinks file. Uses `make_track` + `BEETSDIR`. **Imports must run offline** — pass `--noautotag --quiet --nowrite` (or rely on `autotag: no` from the fixture config) so `beet import` makes no MusicBrainz calls in the no-network image. | `tests/test_adapters/test_beets.py` | 3 | pending |
+| 4.1 | Replace `TestSubprocessCommands` argv-assert mocks with real runs: `modify` changes a field + moves the file; `move` relocates per path template; `remove(delete=True)` removes row + unlinks file. Uses `make_track` + `BEETSDIR`. **Imports must run offline** — pass `--noautotag --quiet --nowrite` (or rely on `autotag: no` from the fixture config) so `beet import` makes no MusicBrainz calls in the no-network image. | `tests/test_adapters/test_beets.py` | 3 | done |
 
 #### Task 4.1 DoD
 - [ ] `modify` test asserts the new field value via a fresh query and the moved file path on disk.
