@@ -1,0 +1,23 @@
+# Pinned, isolated e2e test environment: real beets + beet CLI + ffmpeg.
+# BEETS_VERSION matches the deployed version so tests run what production runs;
+# override it to exercise version drift (e.g. --build-arg BEETS_VERSION=2.7.1).
+FROM python:3.13-slim
+
+ARG BEETS_VERSION=2.12.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+
+RUN uv sync --frozen --no-install-project \
+    && uv pip install "beets==${BEETS_VERSION}"
+
+COPY . .
+
+CMD ["uv", "run", "pytest", "tests/"]

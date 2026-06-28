@@ -1,5 +1,5 @@
 import json
-import sys
+import time
 
 import cyclopts
 
@@ -9,6 +9,11 @@ from musictl.config import settings
 from musictl.services.tracks import TrackService
 
 app = cyclopts.App(name="waybar", help="Output current track info for waybar")
+
+
+def _escape(text: str) -> str:
+    """Escape Pango markup specials. & must be replaced first."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _build_output(service: TrackService) -> str:
@@ -31,10 +36,12 @@ def _build_output(service: TrackService) -> str:
     artist = track.get("artist", "")
     title = track.get("title", "")
     if artist and title:
-        text += f" 󰯈  {artist} - {title}"
+        text += f" 󰯈  {artist}   {title}"
     tooltip = f" {artist} - {title}" if artist and title else ""
 
-    return json.dumps({"text": text, "tooltip": tooltip})
+    # Waybar renders text/tooltip as Pango markup; unescaped &, <, > break the
+    # parser and the module renders blank (e.g. "Artist & Band").
+    return json.dumps({"text": _escape(text), "tooltip": _escape(tooltip)})
 
 
 @app.default
@@ -52,6 +59,7 @@ def waybar() -> None:
     while True:
         try:
             mpd.idle("player")
-        except (OSError, Exception):
-            sys.exit(1)
+        except Exception:
+            time.sleep(5)
+            continue
         print(_build_output(service), flush=True)

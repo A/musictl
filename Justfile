@@ -19,3 +19,6 @@ sync:
 
 test:
     uv run pytest
+
+test-e2e:
+    docker compose run --rm test

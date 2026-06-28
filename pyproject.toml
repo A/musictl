@@ -1,6 +1,6 @@
 [project]
 name = "musictl"
-version = "0.2.2"
+version = "0.2.4"
 description = "Music control utility for MPD + beets"
 authors = [
     {name = "Sanek", email = "anton@shuvalov.info"}
@@ -10,8 +10,14 @@ requires-python = ">=3.13,<4.0"
 dependencies = [
     "cyclopts>=3",
     "python-mpd2>=3",
-    "beets>=2",
+    # Pinned to the deployed major. beets reports `item.path` differently across
+    # versions: 2.12 absolutizes a music_dir-relative DB path against the library
+    # `directory`, while 2.7 returns it relative. BeetsAdapter's path-matching and
+    # its e2e tests target 2.12 behavior; this also matches the Docker harness
+    # BEETS_VERSION build-arg (2.12.0).
+    "beets>=2.12,<3",
     "ffcuesplitter>=1",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
@@ -20,6 +26,11 @@ musictl = "musictl.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e: end-to-end tests against a real, tmp-isolated beets library (Docker harness)",
+]
 
 [tool.ruff]
 target-version = "py313"
@@ -61,4 +72,5 @@ dev = [
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
     "ruff>=0.15.5",
+    "types-pyyaml>=6.0.12.20250915",
 ]
