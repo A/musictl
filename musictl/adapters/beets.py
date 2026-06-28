@@ -1,11 +1,18 @@
 import logging
+import os
 import subprocess
+from pathlib import Path
 
-from beets.library import Library
+from beets.library import Item, Library
 
 from musictl.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _item_path(item: Item) -> str:
+    raw = item.path
+    return raw.decode() if isinstance(raw, bytes) else str(raw)
 
 
 class BeetsAdapter:
@@ -13,23 +20,34 @@ class BeetsAdapter:
         self._lib = Library(str(settings.beets_db_path))
         logger.debug("Opened beets DB: %s", settings.beets_db_path)
 
+    def _abs_path(self, path: str) -> str:
+        """Resolve a path to a normalized absolute path.
+
+        beets may store paths relative to music_dir (depending on the
+        `directory`/import config on a given machine), while callers pass
+        absolute paths from MPD. Normalizing both sides through this helper
+        makes matching robust regardless of which form either side uses, or
+        of `~`, redundant separators, or `..` segments.
+        """
+        p = Path(path).expanduser()
+        abs_path = p if p.is_absolute() else settings.music_dir / p
+        return os.path.normpath(str(abs_path))
+
     def query(self, query: str) -> list[dict[str, str]]:
         logger.debug("Querying: %s", query or "(all)")
         if query.startswith("path:"):
             # Exact path match in Python to avoid beets query parser issues
-            # with special characters (commas, colons, etc.) in file paths
-            target = query[5:]
-            items = [
-                item
-                for item in self._lib.items("")
-                if (item.path.decode() if isinstance(item.path, bytes) else str(item.path)) == target
-            ]
+            # with special characters (commas, colons, etc.) in file paths.
+            # Both the stored path and the target are normalized to absolute
+            # so a relative DB path matches an absolute MPD path (and vice versa).
+            target = self._abs_path(query[5:])
+            items = [item for item in self._lib.items("") if self._abs_path(_item_path(item)) == target]
         else:
             items = self._lib.items(query)
         results = [
             {
                 "id": str(item.id),
-                "path": item.path.decode() if isinstance(item.path, bytes) else str(item.path),
+                "path": self._abs_path(_item_path(item)),
                 "artist": str(item.artist),
                 "title": str(item.title),
                 "album": str(item.album),

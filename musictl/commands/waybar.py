@@ -1,5 +1,5 @@
 import json
-import sys
+import time
 
 import cyclopts
 
@@ -31,7 +31,7 @@ def _build_output(service: TrackService) -> str:
     artist = track.get("artist", "")
     title = track.get("title", "")
     if artist and title:
-        text += f" 󰯈  {artist} - {title}"
+        text += f" 󰯈  {artist}   {title}"
     tooltip = f" {artist} - {title}" if artist and title else ""
 
     return json.dumps({"text": text, "tooltip": tooltip})
@@ -52,6 +52,7 @@ def waybar() -> None:
     while True:
         try:
             mpd.idle("player")
-        except (OSError, Exception):
-            sys.exit(1)
+        except Exception:
+            time.sleep(5)
+            continue
         print(_build_output(service), flush=True)
