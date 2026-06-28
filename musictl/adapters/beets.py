@@ -5,9 +5,14 @@ from pathlib import Path
 
 from beets.library import Item, Library
 
-from musictl.config import settings
+from musictl.config import Settings
+from musictl.config import settings as _global_settings
 
 logger = logging.getLogger(__name__)
+
+# Back-compat module attribute: the default Settings used when none is injected.
+# Bound to the same object as the global config so it can be read directly.
+settings = _global_settings
 
 
 def _item_path(item: Item) -> str:
@@ -16,9 +21,10 @@ def _item_path(item: Item) -> str:
 
 
 class BeetsAdapter:
-    def __init__(self) -> None:
-        self._lib = Library(str(settings.beets_db_path))
-        logger.debug("Opened beets DB: %s", settings.beets_db_path)
+    def __init__(self, settings: Settings | None = None) -> None:
+        self._settings = settings if settings is not None else _global_settings
+        self._lib = Library(str(self._settings.beets_db_path))
+        logger.debug("Opened beets DB: %s", self._settings.beets_db_path)
 
     def _music_rel(self, path: str) -> str:
         """Reduce a path to its canonical music_dir-relative form.
@@ -31,11 +37,17 @@ class BeetsAdapter:
         form to the music_dir-relative tail makes matching and the returned
         `path` field independent of beets version and of `~`, redundant
         separators, or `..` segments.
+
+        `Path.home()` is read here (and via `os.path.expanduser`) as the second
+        candidate base, covering the beets-2.12 case that absolutizes against
+        `$HOME`. It is a module-global dependency driven by the `HOME`
+        environment variable, which e2e fixtures point at a tmp dir for
+        isolation.
         """
         norm = os.path.normpath(os.path.expanduser(path))
         if not os.path.isabs(norm):
             return norm
-        for base in (settings.music_dir, Path.home()):
+        for base in (self._settings.music_dir, Path.home()):
             b = os.path.normpath(str(base))
             if norm == b or norm.startswith(b + os.sep):
                 return os.path.relpath(norm, b)
@@ -44,7 +56,7 @@ class BeetsAdapter:
     def _abs_path(self, path: str) -> str:
         """Canonical absolute path under music_dir, regardless of input form."""
         rel = Path(self._music_rel(path))
-        abs_path = rel if rel.is_absolute() else settings.music_dir / rel
+        abs_path = rel if rel.is_absolute() else self._settings.music_dir / rel
         return os.path.normpath(str(abs_path))
 
     def query(self, query: str) -> list[dict[str, str]]:

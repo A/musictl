@@ -1,0 +1,12 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        BEETS_VERSION: 2.12.0
+    volumes:
+      - .:/app
+      # Keep the image-built venv (pinned beets); don't let the host .venv shadow it.
+      - /app/.venv
+    command: uv run pytest tests/

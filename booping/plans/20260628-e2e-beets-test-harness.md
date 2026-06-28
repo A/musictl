@@ -56,7 +56,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 ## Milestones
 
-### M1: Dockerized test harness + isolated beets fixtures — 6 SP | pending
+### M1: Dockerized test harness + isolated beets fixtures — 6 SP | done
 
 **Goal**: `docker compose run --rm test` runs the suite against a real, tmp-isolated beets Library, and `BeetsAdapter` accepts an injected `Settings`.
 
@@ -64,9 +64,9 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 | Task | Description | Files | SP | Status |
 |------|-------------|-------|----|--------|
-| 1.1 | Add optional `settings: Settings \| None = None` to `BeetsAdapter.__init__` (default to module global); use `self._settings` everywhere it reads `settings.*`. **Audit all module-global deps**: `_music_rel`/`_abs_path` read both `settings.music_dir` *and* `Path.home()` — resolve both as part of this task (document the `Path.home()` dependency; it's driven by the `HOME` env the fixture sets). No caller changes required. | `musictl/adapters/beets.py` | 2 | pending |
-| 1.2 | `Dockerfile.test` (python 3.13 + uv + ffmpeg + `ARG BEETS_VERSION=2.12.0`) and `docker-compose.yml` `test` service mounting the repo, default cmd `uv run pytest tests/`. Add `just test-e2e` wrapper. | `Dockerfile.test`, `docker-compose.yml`, `Justfile` | 2 | pending |
-| 1.3 | `conftest.py` fixtures: `beets_env` (tmp `BEETSDIR` **and** `HOME` env, minimal beets `config.yaml` with **`directory` set to a base distinct from `music_dir`** and `autotag: no`), `tmp_settings` (`Settings` with `music_dir` ≠ beets `directory`), `beets_adapter` (`BeetsAdapter(settings=tmp_settings)`). Register `e2e` marker. | `tests/conftest.py`, `pyproject.toml` | 2 | pending |
+| 1.1 | Add optional `settings: Settings \| None = None` to `BeetsAdapter.__init__` (default to module global); use `self._settings` everywhere it reads `settings.*`. **Audit all module-global deps**: `_music_rel`/`_abs_path` read both `settings.music_dir` *and* `Path.home()` — resolve both as part of this task (document the `Path.home()` dependency; it's driven by the `HOME` env the fixture sets). No caller changes required. | `musictl/adapters/beets.py` | 2 | done |
+| 1.2 | `Dockerfile.test` (python 3.13 + uv + ffmpeg + `ARG BEETS_VERSION=2.12.0`) and `docker-compose.yml` `test` service mounting the repo, default cmd `uv run pytest tests/`. Add `just test-e2e` wrapper. | `Dockerfile.test`, `docker-compose.yml`, `Justfile` | 2 | done |
+| 1.3 | `conftest.py` fixtures: `beets_env` (tmp `BEETSDIR` **and** `HOME` env, minimal beets `config.yaml` with **`directory` set to a base distinct from `music_dir`** and `autotag: no`), `tmp_settings` (`Settings` with `music_dir` ≠ beets `directory`), `beets_adapter` (`BeetsAdapter(settings=tmp_settings)`). Register `e2e` marker. | `tests/conftest.py`, `pyproject.toml` | 2 | done |
 
 #### Task 1.1 DoD
 - [ ] `BeetsAdapter()` (no args) behaves identically to today (uses global `settings`).
@@ -86,7 +86,7 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 ---
 
-### M2: Track seeding helpers (DB-only + silent audio) — 4 SP | pending
+### M2: Track seeding helpers (DB-only + silent audio) — 4 SP | done
 
 **Goal**: two reusable seeders — one inserting beets `Item` rows with a chosen path form, one generating tiny tagged silent tracks — usable from any e2e test.
 
@@ -94,8 +94,8 @@ Image contains: python 3.13, uv, project deps (incl. beets pinned), ffmpeg, `bee
 
 | Task | Description | Files | SP | Status |
 |------|-------------|-------|----|--------|
-| 2.1 | DB-only seeder `seed_item(lib, *, path, folder, playlists, artist, title, album)` building a beets `Item` and `lib.add()`-ing it. Cross-validation confirmed: beets 2.7 stores/returns relative bytes unchanged; **beets 2.12 returns paths absolutized against the library `directory`** — so the discriminating condition is achieved by the `directory` ≠ `music_dir` fixture split (Task 1.3), not by fighting `Item.add`. Document the resulting on-read path form per version in a module docstring. | `tests/support/seeding.py` | 2 | pending |
-| 2.2 | Silent-track generator `make_track(dir, rel_path, **tags)` via `ffmpeg -f lavfi -i anullsrc -t 1` + tag write (mutagen, already transitive via beets). Session-scoped cache for the base silent file; per-test copy + tag. | `tests/support/seeding.py`, `tests/conftest.py` | 2 | pending |
+| 2.1 | DB-only seeder `seed_item(lib, *, path, folder, playlists, artist, title, album)` building a beets `Item` and `lib.add()`-ing it. Cross-validation confirmed: beets 2.7 stores/returns relative bytes unchanged; **beets 2.12 returns paths absolutized against the library `directory`** — so the discriminating condition is achieved by the `directory` ≠ `music_dir` fixture split (Task 1.3), not by fighting `Item.add`. Document the resulting on-read path form per version in a module docstring. | `tests/support/seeding.py` | 2 | done |
+| 2.2 | Silent-track generator `make_track(dir, rel_path, **tags)` via `ffmpeg -f lavfi -i anullsrc -t 1` + tag write (mutagen, already transitive via beets). Session-scoped cache for the base silent file; per-test copy + tag. | `tests/support/seeding.py`, `tests/conftest.py` | 2 | done |
 
 #### Task 2.1 DoD
 - [ ] `seed_item` inserts a row queryable via `beets_adapter.query`.
